@@ -1,5 +1,28 @@
-BasedOnStyle: LLVM
+BasedOnStyle: Google
+Standard: Latest
 IndentWidth: 4
-Language: Cpp
-DerivePointerAlignment: false
-PointerAlignment: Right
+BreakBeforeBraces: Custom
+BraceWrapping:
+  BeforeWhile: true
+  BeforeElse: true
+  BeforeCatch: true
+FixNamespaceComments: false
+NamespaceIndentation: All
+AccessModifierOffset: 0
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: false
+  AfterForeachMacros: false
+  AfterFunctionDeclarationName: false
+  AfterFunctionDefinitionName: false
+  AfterIfMacros: false
+  AfterOverloadedOperator: false
+  AfterPlacementOperator: true
+  AfterRequiresInClause: false
+  AfterRequiresInExpression: false
+  BeforeNonEmptyParentheses: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
+Cpp11BracedListStyle: false
+AllowShortIfStatementsOnASingleLine: Never

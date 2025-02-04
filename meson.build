@@ -90,13 +90,17 @@ foreach protocol : protocols_wlr_unstable
   protocol_code += [code]
 endforeach
 
+conf_data = configuration_data()
+conf_data.set_quoted('PROGRAM_NAME', meson.project_name())
+
+configure_file(
+  output: 'build-config.h',
+  configuration: conf_data,
+)
+
 include_dir = run_command(pkg_config, '--variable=includedir', 'wlroots-0.19').stdout().replace('\n', '')
 
-include = include_directories(
-  include_dir,
-  include_dir / 'wlroots-0.19',
-  'include',
-)
+include = include_directories('include', '.', include_dir, include_dir / 'wlroots-0.19')
 
 libs = [
   dependency('wayland-server'),
@@ -104,7 +108,7 @@ libs = [
   dependency('wlroots-0.19'),
 ]
 
-sources = ['src/main.cpp', protocol_sources, protocol_code]
+sources = ['src/main.cpp', 'src/server.cpp', protocol_sources, protocol_code]
 
 executable(
   meson.project_name(),
