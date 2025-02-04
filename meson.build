@@ -108,7 +108,13 @@ libs = [
   dependency('wlroots-0.19'),
 ]
 
-sources = ['src/main.cpp', 'src/server.cpp', protocol_sources, protocol_code]
+sources = [
+  'src/main.cpp',
+  'src/server.cpp',
+  'src/output.cpp',
+  protocol_sources,
+  protocol_code,
+]
 
 executable(
   meson.project_name(),

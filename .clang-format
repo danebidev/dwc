@@ -26,3 +26,6 @@ AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: Inline
 Cpp11BracedListStyle: false
 AllowShortIfStatementsOnASingleLine: Never
+AlignAfterOpenBracket: Align
+AllowAllArgumentsOnNextLine: false
+ColumnLimit: 100

@@ -39,11 +39,11 @@ int main(int argc, char **argv) {
         usage();
 
     try {
-        Server server;
-        server.start();
+        Server::instance().start();
     }
     catch(const std::runtime_error &err) {
         wlr_log(WLR_ERROR, "%s", err.what());
+        wlr_log(WLR_ERROR, "Unrecoverable error. Compositor exiting.");
         return EXIT_FAILURE;
     }
 }
