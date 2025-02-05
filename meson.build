@@ -107,6 +107,7 @@ libs = [
   dependency('wayland-server'),
   dependency('wayland-protocols'),
   dependency('wlroots-0.19'),
+  dependency('xkbcommon'),
 ]
 
 sources = [
@@ -114,6 +115,7 @@ sources = [
   'src/server.cpp',
   'src/output.cpp',
   'src/toplevel.cpp',
+  'src/input.cpp',
   protocol_sources,
   protocol_code,
 ]

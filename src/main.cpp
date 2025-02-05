@@ -15,12 +15,14 @@ __attribute__((noreturn)) void usage() {
     printf("Usage: %s [options]\n", PROGRAM_NAME);
     printf("Options:\n");
     printf("    -h              display this help message\n");
+    printf("    -v              display debug output\n");
     printf("    -s [command]    start a program on wm startup\n");
     exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char **argv) {
     wlr_log_init(WLR_INFO, NULL);
+    char *startup_cmd = nullptr;
 
     int c;
     while((c = getopt(argc, argv, "s:hv")) != -1) {
@@ -29,6 +31,9 @@ int main(int argc, char **argv) {
                 usage();
             case 'v':
                 wlr_log_init(WLR_DEBUG, NULL);
+                break;
+            case 's':
+                startup_cmd = optarg;
                 break;
             default:
                 usage();
@@ -39,7 +44,7 @@ int main(int argc, char **argv) {
         usage();
 
     try {
-        Server::instance().start();
+        Server::instance().start(startup_cmd);
     }
     catch(const std::runtime_error &err) {
         wlr_log(WLR_ERROR, "%s", err.what());

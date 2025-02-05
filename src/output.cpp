@@ -4,11 +4,9 @@
 
 #include "server.h"
 
-// Raised when a new output (monitor or display) becomes available
-// data is a wlr_output.
 void output::new_output(wl_listener *listener, void *data) {
     Server &server = Server::instance();
-    wlr_output *new_output = (wlr_output *)data;
+    wlr_output *new_output = static_cast<wlr_output *>(data);
 
     // Configures the output to use our allocator and renderer
     wlr_output_init_render(new_output, server.allocator, server.renderer);
@@ -41,15 +39,19 @@ void output::new_output(wl_listener *listener, void *data) {
 
     server.outputs.push_back(output);
 
+    // Add the new output to the output layout
+    // auto_add arranges outputs from left-to-right in the order they appear
+    // TODO: config
     wlr_output_layout_output *layout_output =
         wlr_output_layout_add_auto(server.output_layout, new_output);
+
+    // Adds output to scene graph
     wlr_scene_output *scene_output = wlr_scene_output_create(server.scene, new_output);
 
+    // Add output to scene output layout
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
 }
 
-// Called whenever an output wants to display a frame.
-// Generally should be at the output's refresh rate
 void output::frame(wl_listener *listener, void *data) {
     Output *output = wl_container_of(listener, output, frame);
     wlr_scene *scene = Server::instance().scene;
@@ -62,15 +64,13 @@ void output::frame(wl_listener *listener, void *data) {
     wlr_scene_output_send_frame_done(scene_output, &now);
 }
 
-// Called when the backend request a new state.
-// For example, resizing a window in the X11 or wayland backend
 void output::request_state(wl_listener *listener, void *data) {
     Output *output = wl_container_of(listener, output, request_state);
-    const wlr_output_event_request_state *event = (wlr_output_event_request_state *)data;
+    const wlr_output_event_request_state *event =
+        static_cast<wlr_output_event_request_state *>(data);
     wlr_output_commit_state(output->output, event->state);
 }
 
-// Called when an output is destroyed.
 void output::destroy(wl_listener *listener, void *data) {
     Server &server = Server::instance();
     Output *output = wl_container_of(listener, output, destroy);
@@ -80,6 +80,7 @@ void output::destroy(wl_listener *listener, void *data) {
     wl_list_remove(&output->destroy.link);
 
     // TODO: Maybe switch to std::list for constant time removal?
+    // I don't actually need a vector anyway
     server.outputs.erase(std::remove(server.outputs.begin(), server.outputs.end(), output),
                          server.outputs.end());
 
