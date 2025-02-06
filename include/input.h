@@ -5,6 +5,8 @@
 namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };
 
+    void reset_cursor_mode();
+
     void new_pointer(wlr_input_device* device);
 
     // Called when a pointer emits a relative pointer motion event

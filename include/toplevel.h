@@ -13,9 +13,9 @@ namespace toplevel {
         wl_listener destroy;
 
         wl_listener request_move;
-        /*wl_listener request_resize;*/
-        /*wl_listener request_maximize;*/
-        /*wl_listener request_fullscreen;*/
+        wl_listener request_resize;
+        wl_listener request_maximize;
+        wl_listener request_fullscreen;
     };
 
     struct Popup {
@@ -27,6 +27,7 @@ namespace toplevel {
 
     Toplevel* desktop_toplevel_at(double lx, double ly, double* sx, double* sy,
                                   wlr_surface** surface);
+    void focus_toplevel(Toplevel* toplevel);
 
     // Called when a surface is created by a client
     void new_xdg_toplevel(wl_listener* listener, void* data);
@@ -40,14 +41,23 @@ namespace toplevel {
     // Called when an xdg_toplevel gets unmapped
     void xdg_toplevel_unmap(wl_listener* listener, void* data);
 
-    // Called when an xdg_toplevel gets destroyed
+    // Called when a commit gets applied to a toplevel
     void xdg_toplevel_commit(wl_listener* listener, void* data);
 
-    // Called when an xdg_toplevel gets mapped
+    // Called when an xdg_toplevel gets destroy
     void xdg_toplevel_destroy(wl_listener* listener, void* data);
 
-    // Called when an xdg_toplevel gets mapped
+    // Called when an xdg_toplevel requests a move
     void xdg_toplevel_request_move(wl_listener* listener, void* data);
+
+    // Called when an xdg_toplevel requests a resize
+    void xdg_toplevel_request_resize(wl_listener* listener, void* data);
+
+    // Called when an xdg_toplevel requests to be maximized
+    void xdg_toplevel_request_maximize(wl_listener* listener, void* data);
+
+    // Called when an xdg_toplevel requests fullscreen
+    void xdg_toplevel_request_fullscreen(wl_listener* listener, void* data);
 
     void xdg_popup_commit(wl_listener* listener, void* data);
     void xdg_popup_destroy(wl_listener* listener, void* data);

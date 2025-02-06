@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 
+#include <cassert>
 #include <stdexcept>
 
 #include "output.h"
@@ -108,13 +109,78 @@ Server::~Server() {
     wl_display_destroy_clients(display);
 
     wl_list_remove(&new_output.link);
+    wl_list_remove(&new_xdg_toplevel.link);
+    wl_list_remove(&new_xdg_popup.link);
+    wl_list_remove(&new_input.link);
 
+    wl_list_remove(&cursor_motion.link);
+    wl_list_remove(&cursor_motion_absolute.link);
+    wl_list_remove(&cursor_button.link);
+    wl_list_remove(&cursor_axis.link);
+    wl_list_remove(&cursor_frame.link);
+
+    wl_list_remove(&request_cursor.link);
+    wl_list_remove(&request_set_selection.link);
+
+    wlr_xcursor_manager_destroy(cursor_mgr);
+    wlr_cursor_destroy(cursor);
     wlr_scene_node_destroy(&scene->tree.node);
 
     wlr_allocator_destroy(allocator);
     wlr_renderer_destroy(renderer);
     wlr_backend_destroy(backend);
     wl_display_destroy(display);
+}
+
+void Server::process_cursor_move() {
+    Server& server = Server::instance();
+    toplevel::Toplevel* toplevel = server.grabbed_toplevel;
+    wlr_scene_node_set_position(&toplevel->scene_tree->node, server.cursor->x - server.grab_x,
+                                server.cursor->y - server.grab_y);
+}
+
+void Server::process_cursor_resize() {
+    Server& server = Server::instance();
+    toplevel::Toplevel* toplevel = server.grabbed_toplevel;
+    double border_x = server.cursor->x - server.grab_x;
+    double border_y = server.cursor->y - server.grab_y;
+    int new_left = server.grab_geobox.x;
+    int new_right = server.grab_geobox.x + server.grab_geobox.width;
+    int new_top = server.grab_geobox.y;
+    int new_bottom = server.grab_geobox.y + server.grab_geobox.height;
+
+    if(server.resize_edges & WLR_EDGE_TOP) {
+        new_top = border_y;
+        if(new_top >= new_bottom) {
+            new_top = new_bottom - 1;
+        }
+    }
+    else if(server.resize_edges & WLR_EDGE_BOTTOM) {
+        new_bottom = border_y;
+        if(new_bottom <= new_top) {
+            new_bottom = new_top + 1;
+        }
+    }
+    if(server.resize_edges & WLR_EDGE_LEFT) {
+        new_left = border_x;
+        if(new_left >= new_right) {
+            new_left = new_right - 1;
+        }
+    }
+    else if(server.resize_edges & WLR_EDGE_RIGHT) {
+        new_right = border_x;
+        if(new_right <= new_left) {
+            new_right = new_left + 1;
+        }
+    }
+
+    struct wlr_box* geo_box = &toplevel->toplevel->base->geometry;
+    wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left - geo_box->x,
+                                new_top - geo_box->y);
+
+    int new_width = new_right - new_left;
+    int new_height = new_bottom - new_top;
+    wlr_xdg_toplevel_set_size(toplevel->toplevel, new_width, new_height);
 }
 
 Server& Server::instance() {
@@ -144,11 +210,11 @@ void Server::start(char* startup_cmd) {
 
 void Server::process_cursor_motion(uint32_t time) {
     if(cursor_mode == cursor::CursorMode::MOVE) {
-        /*process_cursor_move();*/
+        process_cursor_move();
         return;
     }
     else if(cursor_mode == cursor::CursorMode::RESIZE) {
-        /*process_cursor_resize();*/
+        process_cursor_resize();
         return;
     }
 
@@ -170,5 +236,29 @@ void Server::process_cursor_motion(uint32_t time) {
 
 void Server::begin_interactive(toplevel::Toplevel* toplevel, cursor::CursorMode mode,
                                uint32_t edges) {
-    // TODO
+    assert(mode != cursor::CursorMode::PASSTHROUGH);
+    Server& server = Server::instance();
+
+    server.grabbed_toplevel = toplevel;
+    server.cursor_mode = mode;
+
+    if(mode == cursor::CursorMode::MOVE) {
+        server.grab_x = server.cursor->x - toplevel->scene_tree->node.x;
+        server.grab_y = server.cursor->y - toplevel->scene_tree->node.y;
+    }
+    else {
+        wlr_box* geo_box = &toplevel->toplevel->base->geometry;
+        double border_x = (toplevel->scene_tree->node.x + geo_box->x) +
+                          ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
+        double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
+                          ((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
+        server.grab_x = server.cursor->x - border_x;
+        server.grab_y = server.cursor->y - border_y;
+
+        server.grab_geobox = *geo_box;
+        server.grab_geobox.x += toplevel->scene_tree->node.x;
+        server.grab_geobox.y += toplevel->scene_tree->node.y;
+
+        server.resize_edges = edges;
+    }
 }

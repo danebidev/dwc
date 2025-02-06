@@ -4,6 +4,12 @@
 
 #include "server.h"
 
+void cursor::reset_cursor_mode() {
+    Server& server = Server::instance();
+    server.cursor_mode = CursorMode::PASSTHROUGH;
+    server.grabbed_toplevel = nullptr;
+}
+
 void cursor::new_pointer(wlr_input_device* device) {
     wlr_cursor_attach_input_device(Server::instance().cursor, device);
 }
@@ -26,7 +32,20 @@ void cursor::cursor_motion_absolute(wl_listener* listener, void* data) {
 }
 
 void cursor::cursor_button(wl_listener* listener, void* data) {
-    // TODO
+    Server& server = Server::instance();
+    wlr_pointer_button_event* event = static_cast<wlr_pointer_button_event*>(data);
+    wlr_seat_pointer_notify_button(server.seat, event->time_msec, event->button, event->state);
+
+    if(event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
+        reset_cursor_mode();
+    }
+    else {
+        double sx, sy;
+        wlr_surface* surface = nullptr;
+        toplevel::Toplevel* toplevel =
+            toplevel::desktop_toplevel_at(server.cursor->x, server.cursor->y, &sx, &sy, &surface);
+        focus_toplevel(toplevel);
+    }
 }
 
 void cursor::cursor_axis(wl_listener* listener, void* data) {

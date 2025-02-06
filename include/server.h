@@ -29,6 +29,9 @@ class Server {
     Server();
     ~Server();
 
+    void process_cursor_move();
+    void process_cursor_resize();
+
     public:
     // Globals
     wl_display* display;
@@ -48,6 +51,12 @@ class Server {
     // Cursor
     wlr_cursor* cursor;
     wlr_xcursor_manager* cursor_mgr;
+
+    // Grab
+    toplevel::Toplevel* grabbed_toplevel;
+    double grab_x, grab_y;
+    wlr_box grab_geobox;
+    uint32_t resize_edges;
 
     // Misc.
     std::vector<output::Output*> outputs;
