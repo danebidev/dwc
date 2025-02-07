@@ -93,6 +93,10 @@ endforeach
 
 conf_data = configuration_data()
 conf_data.set_quoted('PROGRAM_NAME', meson.project_name())
+if get_option('buildtype').startswith('debug')
+  conf_data.set('DEBUG', true)
+endif
+
 
 configure_file(
   output: 'build-config.h',
@@ -111,6 +115,7 @@ libs = [
 ]
 
 sources = [
+  'src/wlr_wrappers.cpp',
   'src/main.cpp',
   'src/server.cpp',
   'src/output.cpp',
