@@ -178,7 +178,7 @@ void toplevel::xdg_popup_commit(wl_listener* listener, void* data) {
 }
 
 void toplevel::xdg_popup_destroy(wl_listener* listener, void* data) {
-    Popup* popup = wl_container_of(listener, popup, commit);
+    Popup* popup = wl_container_of(listener, popup, destroy);
 
     wl_list_remove(&popup->commit.link);
     wl_list_remove(&popup->destroy.link);
