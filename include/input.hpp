@@ -1,6 +1,15 @@
 #pragma once
 
 #include "wlr.hpp"
+#include "wlr_wrappers.hpp"
+
+namespace seat {
+    void new_input(wl_listener* listener, void* data);
+    void request_cursor(wl_listener* listener, void* data);
+
+    // Called by the seat when a client wants to set the selection
+    void request_set_selection(wl_listener* listener, void* data);
+}
 
 namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };
@@ -27,20 +36,15 @@ namespace cursor {
     void cursor_frame(wl_listener* listener, void* data);
 }
 
-namespace seat {
-    void new_input(wl_listener* listener, void* data);
-    void request_cursor(wl_listener* listener, void* data);
-
-    // Called by the seat when a client wants to set the selection
-    void request_set_selection(wl_listener* listener, void* data);
-}
-
 namespace keyboard {
     struct Keyboard {
         wlr_keyboard* keyboard;
-        wl_listener modifiers;
-        wl_listener key;
-        wl_listener destroy;
+
+        wrapper::Listener<Keyboard> modifiers;
+        wrapper::Listener<Keyboard> key;
+        wrapper::Listener<Keyboard> destroy;
+
+        Keyboard(wlr_keyboard* kb);
     };
 
     void new_keyboard(wlr_input_device* device);
@@ -51,5 +55,7 @@ namespace keyboard {
 
     // Called when a key is pressed or released
     void key(wl_listener* listener, void* data);
+
+    // Called when a keyboard is destroyed
     void destroy(wl_listener* listener, void* data);
 }

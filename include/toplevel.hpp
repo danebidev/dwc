@@ -1,32 +1,37 @@
 #pragma once
 
 #include "wlr.hpp"
+#include "wlr_wrappers.hpp"
 
-namespace toplevel {
+namespace xdg_shell {
     struct Toplevel {
         wlr_xdg_toplevel* toplevel;
         wlr_scene_tree* scene_tree;
 
-        wl_listener map;
-        wl_listener unmap;
-        wl_listener commit;
-        wl_listener destroy;
+        wrapper::Listener<Toplevel> map;
+        wrapper::Listener<Toplevel> unmap;
+        wrapper::Listener<Toplevel> commit;
+        wrapper::Listener<Toplevel> destroy;
 
-        wl_listener request_move;
-        wl_listener request_resize;
-        wl_listener request_maximize;
-        wl_listener request_fullscreen;
+        wrapper::Listener<Toplevel> request_move;
+        wrapper::Listener<Toplevel> request_resize;
+        wrapper::Listener<Toplevel> request_maximize;
+        wrapper::Listener<Toplevel> request_fullscreen;
+
+        Toplevel(wlr_xdg_toplevel* toplevel);
     };
 
     struct Popup {
         wlr_xdg_popup* popup;
 
-        wl_listener commit;
-        wl_listener destroy;
+        wrapper::Listener<Popup> commit;
+        wrapper::Listener<Popup> destroy;
+
+        Popup(wlr_xdg_popup* xdg_popup);
     };
 
-    Toplevel* desktop_toplevel_at(double lx, double ly, double* sx, double* sy,
-                                  wlr_surface** surface);
+    Toplevel* desktop_toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
+                                  double& sy);
     void focus_toplevel(Toplevel* toplevel);
 
     // Called when a surface is created by a client
@@ -44,7 +49,7 @@ namespace toplevel {
     // Called when a commit gets applied to a toplevel
     void xdg_toplevel_commit(wl_listener* listener, void* data);
 
-    // Called when an xdg_toplevel gets destroy
+    // Called when an xdg_toplevel gets destroyed
     void xdg_toplevel_destroy(wl_listener* listener, void* data);
 
     // Called when an xdg_toplevel requests a move

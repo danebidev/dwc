@@ -8,20 +8,67 @@
 #include "output.hpp"
 #include "wlr.hpp"
 
-Server::Server() {
-    // wl_display global.
-    // Needed for the registry and the creation of more objects
-    display = wl_display_create();
+Server::Server()
+    :  // wl_display global.
+       // Needed for the registry and the creation of more objects
+      display(wl_display_create()),
 
-    // Backend. Abstracts input and output hardware.
-    // Supports stuff like X11 windows, DRM, libinput, headless, etc.
-    backend = wlr_backend_autocreate(wl_display_get_event_loop(display), NULL);
+      // Backend. Abstracts input and output hardware.
+      // Supports stuff like X11 windows, DRM, libinput, headless, etc.
+      backend(wlr_backend_autocreate(wl_display_get_event_loop(display), NULL)),
+
+      // Automatically chooses a wlr renderer. Can be Pixman, GLES2 or Vulkan.
+      // Can be overridden by the user with the WLR_RENDERER env var
+      renderer(wlr_renderer_autocreate(backend)),
+
+      // Creates an allocator. The allocator allocates pixel buffers with
+      // the correct capabilities and position based on the backend and renderer
+      allocator(wlr_allocator_autocreate(backend, renderer)),
+
+      // Output layout, to configure how
+      // outputs are physically arranged
+      output_layout(wlr_output_layout_create(display)),
+
+      // Creates the scene graph, that handles all rendering and damage tracking
+      scene(wlr_scene_create()),
+
+      // Attaches an output layout to a scene, to synchronize the positions of scene
+      // outputs with the positions of corresponding layout outputs
+      scene_layout(wlr_scene_attach_output_layout(scene, output_layout)),
+
+      // xdg-shell
+      xdg_shell(wlr_xdg_shell_create(display, 6)),
+
+      // cursor is a wlroots utility for tracking the cursor image
+      cursor(wlr_cursor_create()),
+
+      // Creates a xcursor manager, that loads Xcursor cursors
+      // and manages scaling them
+      cursor_mgr(wlr_xcursor_manager_create(NULL, 24)),
+      cursor_mode(cursor::CursorMode::PASSTHROUGH),
+
+      // Seat
+      seat(wlr_seat_create(display, "seat0")),
+
+      // Listeners
+      new_output(this, output::new_output, &backend->events.new_output),
+
+      new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
+      new_xdg_popup(this, xdg_shell::new_xdg_popup, &xdg_shell->events.new_popup),
+
+      cursor_motion(this, cursor::cursor_motion, &cursor->events.motion),
+      cursor_motion_absolute(this, cursor::cursor_motion_absolute, &cursor->events.motion_absolute),
+      cursor_button(this, cursor::cursor_button, &cursor->events.button),
+      cursor_axis(this, cursor::cursor_axis, &cursor->events.axis),
+      cursor_frame(this, cursor::cursor_frame, &cursor->events.frame),
+
+      new_input(this, seat::new_input, &backend->events.new_input),
+      request_cursor(this, seat::request_cursor, &seat->events.request_set_cursor),
+      request_set_selection(this, seat::request_set_selection,
+                            &seat->events.request_set_selection) {
     if(!backend)
         throw std::runtime_error("failed to create wlr_backend");
 
-    // Automatically chooses a wlr renderer. Can be Pixman, GLES2 or Vulkan.
-    // Can be overridden by the user with the WLR_RENDERER env var
-    renderer = wlr_renderer_autocreate(backend);
     if(!renderer)
         throw std::runtime_error("failed to create wlr_renderer");
 
@@ -29,9 +76,6 @@ Server::Server() {
     if(!wlr_renderer_init_wl_display(renderer, display))
         throw std::runtime_error("wlr_renderer_init_wl_display failed");
 
-    // Creates an allocator. The allocator allocates pixel buffers with
-    // the correct capabilities and position based on the backend and renderer
-    allocator = wlr_allocator_autocreate(backend, renderer);
     if(!allocator)
         throw std::runtime_error("failed to create wlr_allocator");
 
@@ -48,79 +92,26 @@ Server::Server() {
     // (copy-and-paste, drag-and-drop, etc.)
     wlr_data_device_manager_create(display);
 
-    // Output layout, to configure how
-    // outputs are physically arranged
-    output_layout = wlr_output_layout_create(display);
-
-    // Listener for new available outputs
-    new_output.notify = output::new_output;
-    wl_signal_add(&backend->events.new_output, &new_output);
-
-    // Creates the scene graph, that handles all rendering and damage tracking
-    scene = wlr_scene_create();
-
-    // Attaches an output layout to a scene, to synchronize the positions of scene
-    // outputs with the positions of corresponding layout outputs
-    scene_layout = wlr_scene_attach_output_layout(scene, output_layout);
-
-    // xdg-shell
-    xdg_shell = wlr_xdg_shell_create(display, 6);
-
-    new_xdg_toplevel.notify = toplevel::new_xdg_toplevel;
-    new_xdg_popup.notify = toplevel::new_xdg_popup;
-    wl_signal_add(&xdg_shell->events.new_toplevel, &new_xdg_toplevel);
-    wl_signal_add(&xdg_shell->events.new_popup, &new_xdg_popup);
-
-    // cursor is a wlroots utility for tracking the cursor image
-    cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(cursor, output_layout);
-
-    // Creates a xcursor manager, that loads Xcursor cursors
-    // and manages scaling them
-    cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
-
-    // Cursor input
-    cursor_mode = cursor::CursorMode::PASSTHROUGH;
-
-    cursor_motion.notify = cursor::cursor_motion;
-    cursor_motion_absolute.notify = cursor::cursor_motion_absolute;
-    cursor_button.notify = cursor::cursor_button;
-    cursor_axis.notify = cursor::cursor_axis;
-    cursor_frame.notify = cursor::cursor_frame;
-
-    wl_signal_add(&cursor->events.motion, &cursor_motion);
-    wl_signal_add(&cursor->events.motion_absolute, &cursor_motion_absolute);
-    wl_signal_add(&cursor->events.button, &cursor_button);
-    wl_signal_add(&cursor->events.axis, &cursor_axis);
-    wl_signal_add(&cursor->events.frame, &cursor_frame);
-
-    // Seat
-    seat = wlr_seat_create(display, "seat0");
-    new_input.notify = seat::new_input;
-    request_cursor.notify = seat::request_cursor;
-    request_set_selection.notify = seat::request_set_selection;
-
-    wl_signal_add(&backend->events.new_input, &new_input);
-    wl_signal_add(&seat->events.request_set_cursor, &request_cursor);
-    wl_signal_add(&seat->events.request_set_selection, &request_set_selection);
 }
 
 Server::~Server() {
     wl_display_destroy_clients(display);
 
-    wl_list_remove(&new_output.link);
-    wl_list_remove(&new_xdg_toplevel.link);
-    wl_list_remove(&new_xdg_popup.link);
-    wl_list_remove(&new_input.link);
+    cursor_motion.free();
+    cursor_motion_absolute.free();
+    cursor_button.free();
+    cursor_axis.free();
+    cursor_frame.free();
 
-    wl_list_remove(&cursor_motion.link);
-    wl_list_remove(&cursor_motion_absolute.link);
-    wl_list_remove(&cursor_button.link);
-    wl_list_remove(&cursor_axis.link);
-    wl_list_remove(&cursor_frame.link);
+    new_input.free();
+    new_output.free();
 
-    wl_list_remove(&request_cursor.link);
-    wl_list_remove(&request_set_selection.link);
+    new_xdg_toplevel.free();
+    new_xdg_popup.free();
+
+    request_cursor.free();
+    request_set_selection.free();
 
     wlr_xcursor_manager_destroy(cursor_mgr);
     wlr_cursor_destroy(cursor);
@@ -133,15 +124,15 @@ Server::~Server() {
 }
 
 void Server::process_cursor_move() {
-    Server& server = Server::instance();
-    toplevel::Toplevel* toplevel = server.grabbed_toplevel;
+    Server &server = Server::instance();
+    xdg_shell::Toplevel *toplevel = server.grabbed_toplevel;
     wlr_scene_node_set_position(&toplevel->scene_tree->node, server.cursor->x - server.grab_x,
                                 server.cursor->y - server.grab_y);
 }
 
 void Server::process_cursor_resize() {
-    Server& server = Server::instance();
-    toplevel::Toplevel* toplevel = server.grabbed_toplevel;
+    Server &server = Server::instance();
+    xdg_shell::Toplevel *toplevel = server.grabbed_toplevel;
     double border_x = server.cursor->x - server.grab_x;
     double border_y = server.cursor->y - server.grab_y;
     int new_left = server.grab_geobox.x;
@@ -174,7 +165,7 @@ void Server::process_cursor_resize() {
         }
     }
 
-    struct wlr_box* geo_box = &toplevel->toplevel->base->geometry;
+    struct wlr_box *geo_box = &toplevel->toplevel->base->geometry;
     wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left - geo_box->x,
                                 new_top - geo_box->y);
 
@@ -183,13 +174,13 @@ void Server::process_cursor_resize() {
     wlr_xdg_toplevel_set_size(toplevel->toplevel, new_width, new_height);
 }
 
-Server& Server::instance() {
+Server &Server::instance() {
     static Server instance;
     return instance;
 }
 
-void Server::start(char* startup_cmd) {
-    const char* socket = wl_display_add_socket_auto(display);
+void Server::start(char *startup_cmd) {
+    const char *socket = wl_display_add_socket_auto(display);
     if(!socket) {
         wlr_backend_destroy(backend);
         throw std::runtime_error("couldn't create socket");
@@ -201,7 +192,7 @@ void Server::start(char* startup_cmd) {
     setenv("WAYLAND_DISPLAY", socket, true);
     if(startup_cmd) {
         if(fork() == 0)
-            execl("/bin/sh", "/bin/sh", "-c", startup_cmd, (void*)NULL);
+            execl("/bin/sh", "/bin/sh", "-c", startup_cmd, (void *)NULL);
     }
 
     wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
@@ -219,9 +210,9 @@ void Server::process_cursor_motion(uint32_t time) {
     }
 
     double sx, sy;
-    wlr_surface* surface = NULL;
-    toplevel::Toplevel* toplevel =
-        toplevel::desktop_toplevel_at(cursor->x, cursor->y, &sx, &sy, &surface);
+    wlr_surface *surface = nullptr;
+    xdg_shell::Toplevel *toplevel =
+        xdg_shell::desktop_toplevel_at(cursor->x, cursor->y, surface, sx, sy);
 
     // If there's no toplevel to provide the image, set it to a default image
     if(!toplevel)
@@ -234,10 +225,10 @@ void Server::process_cursor_motion(uint32_t time) {
         wlr_seat_pointer_clear_focus(seat);
 }
 
-void Server::begin_interactive(toplevel::Toplevel* toplevel, cursor::CursorMode mode,
+void Server::begin_interactive(xdg_shell::Toplevel *toplevel, cursor::CursorMode mode,
                                uint32_t edges) {
     assert(mode != cursor::CursorMode::PASSTHROUGH);
-    Server& server = Server::instance();
+    Server &server = Server::instance();
 
     server.grabbed_toplevel = toplevel;
     server.cursor_mode = mode;
@@ -247,7 +238,7 @@ void Server::begin_interactive(toplevel::Toplevel* toplevel, cursor::CursorMode 
         server.grab_y = server.cursor->y - toplevel->scene_tree->node.y;
     }
     else {
-        wlr_box* geo_box = &toplevel->toplevel->base->geometry;
+        wlr_box *geo_box = &toplevel->toplevel->base->geometry;
         double border_x = (toplevel->scene_tree->node.x + geo_box->x) +
                           ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
         double border_y = (toplevel->scene_tree->node.y + geo_box->y) +

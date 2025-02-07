@@ -6,18 +6,30 @@
 
 namespace wrapper {
     template <typename Container>
-    class Listener : wl_listener {
+    class Listener : public wl_listener {
         public:
         using Callback = void(wl_listener*, void*);
 
-        Listener(Container cont, Callback callback) {
+        Listener(Container* cont, Callback cb, wl_signal* signal) : freed(false) {
             container = cont;
-            notify = callback;
+            notify = cb;
+            wl_signal_add(signal, this);
         }
 
-        void registerEvent(wl_signal* signal) { wl_signal_add(signal, this); }
+        ~Listener() { free(); }
+
+        // Cursed stuff, needed because listeners sometimes have to be deleted manually
+        // See server.cpp
+        void free() {
+            if(!freed) {
+                wl_list_remove(&link);
+                freed = true;
+            }
+        }
+
+        Container* container;
 
         private:
-        Container container;
+        bool freed;
     };
 }
