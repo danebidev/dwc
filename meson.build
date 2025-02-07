@@ -115,7 +115,6 @@ libs = [
 ]
 
 sources = [
-  'src/wlr_wrappers.cpp',
   'src/main.cpp',
   'src/server.cpp',
   'src/output.cpp',

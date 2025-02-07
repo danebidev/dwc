@@ -1,12 +1,12 @@
-#include "server.h"
+#include "server.hpp"
 
 #include <unistd.h>
 
 #include <cassert>
 #include <stdexcept>
 
-#include "output.h"
-#include "wlr.h"
+#include "output.hpp"
+#include "wlr.hpp"
 
 Server::Server() {
     // wl_display global.

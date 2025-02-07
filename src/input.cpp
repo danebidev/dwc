@@ -1,8 +1,8 @@
-#include "input.h"
+#include "input.hpp"
 
 #include <algorithm>
 
-#include "server.h"
+#include "server.hpp"
 
 void cursor::reset_cursor_mode() {
     Server& server = Server::instance();

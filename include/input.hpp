@@ -1,6 +1,6 @@
 #pragma once
 
-#include "wlr.h"
+#include "wlr.hpp"
 
 namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };

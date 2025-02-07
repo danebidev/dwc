@@ -1,8 +1,8 @@
-#include "output.h"
+#include "output.hpp"
 
 #include <algorithm>
 
-#include "server.h"
+#include "server.hpp"
 
 void output::new_output(wl_listener *listener, void *data) {
     Server &server = Server::instance();

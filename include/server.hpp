@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "input.h"
-#include "output.h"
-#include "toplevel.h"
-#include "wlr.h"
+#include "input.hpp"
+#include "output.hpp"
+#include "toplevel.hpp"
+#include "wlr.hpp"
 class Server {
     private:
     // Listeners

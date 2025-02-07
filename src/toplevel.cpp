@@ -1,9 +1,9 @@
-#include "toplevel.h"
+#include "toplevel.hpp"
 
 #include <algorithm>
 #include <cassert>
 
-#include "server.h"
+#include "server.hpp"
 
 toplevel::Toplevel* toplevel::desktop_toplevel_at(double lx, double ly, double* sx, double* sy,
                                                   wlr_surface** surface) {

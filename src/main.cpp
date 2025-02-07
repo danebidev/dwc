@@ -3,13 +3,13 @@
 #include <stdexcept>
 
 #include "build-config.h"
-#include "server.h"
+#include "server.hpp"
 
 extern "C" {
 #include <getopt.h>
 }
 
-#include <wlr.h>
+#include <wlr.hpp>
 
 __attribute__((noreturn)) void usage() {
     printf("Usage: %s [options]\n", PROGRAM_NAME);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "wlr.h"
+#include "wlr.hpp"
 
 namespace output {
     struct Output {
