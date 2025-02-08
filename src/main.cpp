@@ -21,7 +21,11 @@ __attribute__((noreturn)) void usage() {
 }
 
 int main(int argc, char **argv) {
+#ifdef DEBUG
+    wlr_log_init(WLR_DEBUG, NULL);
+#else
     wlr_log_init(WLR_INFO, NULL);
+#endif
     char *startup_cmd = nullptr;
 
     int c;
