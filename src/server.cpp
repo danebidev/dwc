@@ -98,6 +98,8 @@ Server::Server()
 Server::~Server() {
     wl_display_destroy_clients(display);
 
+    // We have to destroy listeners before we can destroy the other
+    // objects, so this is necessary. Ideally there'd be a cleaner way
     cursor_motion.free();
     cursor_motion_absolute.free();
     cursor_button.free();

@@ -97,7 +97,6 @@ if get_option('buildtype').startswith('debug')
   conf_data.set('DEBUG', true)
 endif
 
-
 configure_file(
   output: 'build-config.h',
   configuration: conf_data,
@@ -118,7 +117,7 @@ sources = [
   'src/main.cpp',
   'src/server.cpp',
   'src/output.cpp',
-  'src/toplevel.cpp',
+  'src/xdg-shell.cpp',
   'src/input.cpp',
   protocol_sources,
   protocol_code,

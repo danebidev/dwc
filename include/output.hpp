@@ -1,7 +1,7 @@
 #pragma once
 
+#include "wlr-wrapper.hpp"
 #include "wlr.hpp"
-#include "wlr_wrappers.hpp"
 
 namespace output {
     struct Output {

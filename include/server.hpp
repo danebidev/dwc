@@ -4,8 +4,8 @@
 
 #include "input.hpp"
 #include "output.hpp"
-#include "toplevel.hpp"
 #include "wlr.hpp"
+#include "xdg-shell.hpp"
 class Server {
     public:
     // Globals
