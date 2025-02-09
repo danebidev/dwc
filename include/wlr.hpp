@@ -4,6 +4,7 @@
 #include <wayland-server-core.h>
 
 #define static
+#define namespace namespace_
 
 extern "C" {
 #define WLR_USE_UNSTABLE 1
@@ -15,6 +16,7 @@ extern "C" {
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_subcompositor.h>
@@ -24,4 +26,5 @@ extern "C" {
 }
 
 #undef static
+#undef namespace
 // IWYU pragma: end_exports

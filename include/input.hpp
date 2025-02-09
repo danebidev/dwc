@@ -4,6 +4,20 @@
 #include "wlr.hpp"
 
 namespace seat {
+    struct Seat {
+        wlr_seat* seat;
+
+        wlr_scene_tree* scene_tree;
+        wlr_scene_tree* drag_icons;
+
+        wrapper::Listener<Seat> request_cursor;
+        wrapper::Listener<Seat> request_set_selection;
+
+        Seat(const char* seat_name, wl_display* display, wlr_scene_tree* seat_tree);
+
+        void free_listeners();
+    };
+
     void new_input(wl_listener* listener, void* data);
     void request_cursor(wl_listener* listener, void* data);
 

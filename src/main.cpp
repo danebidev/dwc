@@ -22,9 +22,9 @@ __attribute__((noreturn)) void usage() {
 
 int main(int argc, char **argv) {
 #ifdef DEBUG
-    wlr_log_init(WLR_DEBUG, NULL);
+    wlr_log_init(WLR_DEBUG, nullptr);
 #else
-    wlr_log_init(WLR_INFO, NULL);
+    wlr_log_init(WLR_INFO, nullptr);
 #endif
     char *startup_cmd = nullptr;
 
@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
             case 'h':
                 usage();
             case 'v':
-                wlr_log_init(WLR_DEBUG, NULL);
+                wlr_log_init(WLR_DEBUG, nullptr);
                 break;
             case 's':
                 startup_cmd = optarg;

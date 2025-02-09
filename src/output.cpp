@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "layer-shell.hpp"
 #include "server.hpp"
 
 output::Output::Output(wlr_output *output)
@@ -34,6 +35,11 @@ output::Output::Output(wlr_output *output)
     wlr_output_layout_output *layout_output =
         wlr_output_layout_add_auto(server.output_layout, output);
 
+    layers.shell_background = wlr_scene_tree_create(server.layers.shell_background);
+    layers.shell_bottom = wlr_scene_tree_create(server.layers.shell_bottom);
+    layers.shell_top = wlr_scene_tree_create(server.layers.shell_top);
+    layers.shell_overlay = wlr_scene_tree_create(server.layers.shell_overlay);
+
     // Adds output to scene graph
     wlr_scene_output *scene_output = wlr_scene_output_create(server.scene, output);
 
@@ -41,9 +47,49 @@ output::Output::Output(wlr_output *output)
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
 }
 
+void output::Output::arrange() {
+    Server &server = Server::instance();
+
+    wlr_box usable_area { 0 };
+    wlr_output_effective_resolution(output, &usable_area.width, &usable_area.height);
+    wlr_box full_area = usable_area;
+
+    for(auto &layer : { server.layers.shell_background, server.layers.shell_bottom,
+                        server.layers.shell_top, server.layers.shell_overlay }) {
+        wlr_scene_node *node;
+        wl_list_for_each(node, &layer->children, link) {
+            layer_shell::LayerSurface *surface =
+                static_cast<layer_shell::LayerSurface *>(node->data);
+            if(!surface || !surface->layer_surface->initialized)
+                continue;
+            if(surface->layer_surface->current.exclusive_zone > 0)
+                wlr_scene_layer_surface_v1_configure(surface->scene, &full_area, &usable_area);
+        }
+    }
+
+    for(auto &layer : { server.layers.shell_background, server.layers.shell_bottom,
+                        server.layers.shell_top, server.layers.shell_overlay }) {
+        wlr_scene_node *node;
+        wl_list_for_each(node, &layer->children, link) {
+            layer_shell::LayerSurface *surface =
+                static_cast<layer_shell::LayerSurface *>(node->data);
+            if(!surface || !surface->layer_surface->initialized)
+                continue;
+            if(surface->layer_surface->current.exclusive_zone <= 0)
+                wlr_scene_layer_surface_v1_configure(surface->scene, &full_area, &usable_area);
+        }
+    }
+}
+
 void output::new_output(wl_listener *listener, void *data) {
-    wlr_output *output = static_cast<wlr_output *>(data);
-    Server::instance().outputs.push_back(new Output(output));
+    wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
+    Output *output = new Output(wlr_output);
+    wlr_output->data = output;
+    Server::instance().outputs.push_back(output);
+}
+
+void output::arrange_outputs() {
+    for(auto &output : Server::instance().outputs) output->arrange();
 }
 
 void output::frame(wl_listener *listener, void *data) {
@@ -51,7 +97,7 @@ void output::frame(wl_listener *listener, void *data) {
     wlr_scene *scene = Server::instance().scene;
     wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->output);
 
-    wlr_scene_output_commit(scene_output, NULL);
+    wlr_scene_output_commit(scene_output, nullptr);
 
     timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);

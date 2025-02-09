@@ -3,9 +3,25 @@
 #include <vector>
 
 #include "input.hpp"
+#include "layer-shell.hpp"
 #include "output.hpp"
 #include "wlr.hpp"
 #include "xdg-shell.hpp"
+
+struct RootLayers {
+    wlr_scene_tree* shell_background;
+    wlr_scene_tree* shell_bottom;
+    wlr_scene_tree* shell_top;
+    wlr_scene_tree* shell_overlay;
+
+    wlr_scene_tree* floating;
+    wlr_scene_tree* fullscreen;
+    wlr_scene_tree* popups;
+    wlr_scene_tree* seat;
+
+    RootLayers(wlr_scene_tree* parent);
+};
+
 class Server {
     public:
     // Globals
@@ -16,11 +32,21 @@ class Server {
 
     // Layout/output
     wlr_output_layout* output_layout;
+
+    // scene layout:
+    // - root
+    //  - layer shell
+    //  - tiling
+    //  - floating
+    //  - fullscreen
     wlr_scene* scene;
+    RootLayers layers;
+
     wlr_scene_output_layout* scene_layout;
 
     // Protocols
     wlr_xdg_shell* xdg_shell;
+    wlr_layer_shell_v1* layer_shell;
 
     // Cursor
     wlr_cursor* cursor;
@@ -28,7 +54,8 @@ class Server {
     cursor::CursorMode cursor_mode;
 
     // Seat
-    wlr_seat* seat;
+    // TODO: support more seats
+    seat::Seat seat;
 
     // Grab
     xdg_shell::Toplevel* grabbed_toplevel;
@@ -52,11 +79,22 @@ class Server {
     // and used for some operation, like move and resize of windows
     void begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode mode, uint32_t edges);
 
+    template <typename T>
+    T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy);
+
+    xdg_shell::Toplevel* toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
+                                     double& sy);
+    layer_shell::LayerSurface* layer_surface_at(double lx, double ly, wlr_surface*& surface,
+                                                double& sx, double& sy);
+
     private:
     // Listeners
     wrapper::Listener<Server> new_output;
+
     wrapper::Listener<Server> new_xdg_toplevel;
     wrapper::Listener<Server> new_xdg_popup;
+
+    wrapper::Listener<Server> new_layer_shell_surface;
 
     wrapper::Listener<Server> cursor_motion;
     wrapper::Listener<Server> cursor_motion_absolute;
@@ -65,8 +103,6 @@ class Server {
     wrapper::Listener<Server> cursor_frame;
 
     wrapper::Listener<Server> new_input;
-    wrapper::Listener<Server> request_cursor;
-    wrapper::Listener<Server> request_set_selection;
 
     Server();
     ~Server();

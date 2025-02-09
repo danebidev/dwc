@@ -118,6 +118,7 @@ sources = [
   'src/server.cpp',
   'src/output.cpp',
   'src/xdg-shell.cpp',
+  'src/layer-shell.cpp',
   'src/input.cpp',
   protocol_sources,
   protocol_code,

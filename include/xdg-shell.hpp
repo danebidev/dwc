@@ -27,11 +27,9 @@ namespace xdg_shell {
         wrapper::Listener<Popup> commit;
         wrapper::Listener<Popup> destroy;
 
-        Popup(wlr_xdg_popup* xdg_popup);
+        Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent);
     };
 
-    Toplevel* desktop_toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
-                                  double& sy);
     void focus_toplevel(Toplevel* toplevel);
 
     // Called when a surface is created by a client

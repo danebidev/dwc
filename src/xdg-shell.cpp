@@ -19,34 +19,10 @@ xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
       request_fullscreen(this, xdg_toplevel_request_fullscreen,
                          &xdg_toplevel->events.request_fullscreen) {}
 
-xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup)
+xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent)
     : commit(this, xdg_popup_commit, &xdg_popup->base->surface->events.commit),
       destroy(this, xdg_popup_destroy, &xdg_popup->events.destroy) {
-    wlr_xdg_surface* parent = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-    wlr_scene_tree* parent_tree = static_cast<wlr_scene_tree*>(parent->data);
-    xdg_popup->base->data = wlr_scene_xdg_surface_create(parent_tree, xdg_popup->base);
-}
-
-xdg_shell::Toplevel* xdg_shell::desktop_toplevel_at(double lx, double ly, wlr_surface*& surface,
-                                                    double& sx, double& sy) {
-    Server& server = Server::instance();
-    wlr_scene_node* node = wlr_scene_node_at(&server.scene->tree.node, lx, ly, &sx, &sy);
-    if(!node || node->type != WLR_SCENE_NODE_BUFFER)
-        return nullptr;
-
-    wlr_scene_buffer* scene_buffer = wlr_scene_buffer_from_node(node);
-    wlr_scene_surface* scene_surface = wlr_scene_surface_try_from_buffer(scene_buffer);
-    if(!scene_surface)
-        return nullptr;
-
-    surface = scene_surface->surface;
-
-    wlr_scene_tree* tree = node->parent;
-    while(tree && !tree->node.data) {
-        tree = tree->node.parent;
-    }
-
-    return static_cast<Toplevel*>(tree->node.data);
+    xdg_popup->base->data = wlr_scene_xdg_surface_create(parent, xdg_popup->base);
 }
 
 // Only for keyboard focus
@@ -55,7 +31,7 @@ void xdg_shell::focus_toplevel(Toplevel* toplevel) {
         return;
 
     Server& server = Server::instance();
-    wlr_seat* seat = server.seat;
+    wlr_seat* seat = server.seat.seat;
     wlr_surface* prev_surface = seat->keyboard_state.focused_surface;
     wlr_surface* surface = toplevel->toplevel->base->surface;
 
@@ -89,7 +65,10 @@ void xdg_shell::new_xdg_toplevel(wl_listener* listener, void* data) {
 }
 
 void xdg_shell::new_xdg_popup(wl_listener* listener, void* data) {
-    new Popup(static_cast<wlr_xdg_popup*>(data));
+    wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
+    wlr_xdg_surface* parent = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
+    wlr_scene_tree* parent_tree = static_cast<wlr_scene_tree*>(parent->data);
+    new Popup(xdg_popup, parent_tree);
 }
 
 void xdg_shell::xdg_toplevel_map(wl_listener* listener, void* data) {

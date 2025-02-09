@@ -3,7 +3,25 @@
 #include <algorithm>
 #include <cassert>
 
+#include "layer-shell.hpp"
 #include "server.hpp"
+
+seat::Seat::Seat(const char *seat_name, wl_display *display, wlr_scene_tree *seat_tree)
+    : seat(wlr_seat_create(display, seat_name)),
+
+      scene_tree(wlr_scene_tree_create(seat_tree)),
+      drag_icons(wlr_scene_tree_create(scene_tree)),
+
+      request_cursor(this, seat::request_cursor, &seat->events.request_set_cursor),
+      request_set_selection(this, seat::request_set_selection,
+                            &seat->events.request_set_selection) {
+    seat->data = this;
+}
+
+void seat::Seat::free_listeners() {
+    request_cursor.free();
+    request_set_selection.free();
+}
 
 void seat::new_input(wl_listener *listener, void *data) {
     Server &server = Server::instance();
@@ -28,7 +46,7 @@ void seat::new_input(wl_listener *listener, void *data) {
     if(!server.keyboards.empty())
         caps |= WL_SEAT_CAPABILITY_KEYBOARD;
 
-    wlr_seat_set_capabilities(server.seat, caps);
+    wlr_seat_set_capabilities(server.seat.seat, caps);
 }
 
 void seat::request_cursor(wl_listener *listener, void *data) {
@@ -37,16 +55,17 @@ void seat::request_cursor(wl_listener *listener, void *data) {
         static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
 
     // Check that it's actually being sent by the focused client
-    wlr_seat_client *focused_client = server.seat->pointer_state.focused_client;
+    wlr_seat_client *focused_client = server.seat.seat->pointer_state.focused_client;
     if(focused_client == event->seat_client)
         wlr_cursor_set_surface(server.cursor, event->surface, event->hotspot_x, event->hotspot_y);
 }
 
 void seat::request_set_selection(wl_listener *listener, void *data) {
+    Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
     wlr_seat_request_set_selection_event *event =
         static_cast<wlr_seat_request_set_selection_event *>(data);
 
-    wlr_seat_set_selection(Server::instance().seat, event->source, event->serial);
+    wlr_seat_set_selection(seat->seat, event->source, event->serial);
 }
 
 void cursor::new_pointer(wlr_input_device *device) {
@@ -79,7 +98,7 @@ void cursor::cursor_motion_absolute(wl_listener *listener, void *data) {
 void cursor::cursor_button(wl_listener *listener, void *data) {
     Server &server = Server::instance();
     wlr_pointer_button_event *event = static_cast<wlr_pointer_button_event *>(data);
-    wlr_seat_pointer_notify_button(server.seat, event->time_msec, event->button, event->state);
+    wlr_seat_pointer_notify_button(server.seat.seat, event->time_msec, event->button, event->state);
 
     if(event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
         reset_cursor_mode();
@@ -88,8 +107,17 @@ void cursor::cursor_button(wl_listener *listener, void *data) {
         double sx, sy;
         wlr_surface *surface = nullptr;
         xdg_shell::Toplevel *toplevel =
-            xdg_shell::desktop_toplevel_at(server.cursor->x, server.cursor->y, surface, sx, sy);
-        focus_toplevel(toplevel);
+            server.toplevel_at(server.cursor->x, server.cursor->y, surface, sx, sy);
+        if(toplevel && surface && surface->mapped) {
+            focus_toplevel(toplevel);
+            return;
+        }
+
+        layer_shell::LayerSurface *layer_surface =
+            server.layer_surface_at(server.cursor->x, server.cursor->y, surface, sx, sy);
+        if(layer_surface && surface && surface->mapped) {
+            layer_surface->handle_focus();
+        }
     }
 }
 
@@ -97,12 +125,13 @@ void cursor::cursor_axis(wl_listener *listener, void *data) {
     Server &server = Server::instance();
     wlr_pointer_axis_event *event = static_cast<wlr_pointer_axis_event *>(data);
 
-    wlr_seat_pointer_notify_axis(server.seat, event->time_msec, event->orientation, event->delta,
-                                 event->delta_discrete, event->source, event->relative_direction);
+    wlr_seat_pointer_notify_axis(server.seat.seat, event->time_msec, event->orientation,
+                                 event->delta, event->delta_discrete, event->source,
+                                 event->relative_direction);
 }
 
 void cursor::cursor_frame(wl_listener *listener, void *data) {
-    wlr_seat_pointer_notify_frame(Server::instance().seat);
+    wlr_seat_pointer_notify_frame(Server::instance().seat.seat);
 }
 
 keyboard::Keyboard::Keyboard(wlr_keyboard *kb)
@@ -112,7 +141,7 @@ keyboard::Keyboard::Keyboard(wlr_keyboard *kb)
       destroy(this, keyboard::destroy, &kb->base.events.destroy) {
     Server &server = Server::instance();
     xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    xkb_keymap *keymap = xkb_keymap_new_from_names(context, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    xkb_keymap *keymap = xkb_keymap_new_from_names(context, nullptr, XKB_KEYMAP_COMPILE_NO_FLAGS);
 
     // Assign XKB keymap
     wlr_keyboard_set_keymap(keyboard, keymap);
@@ -120,7 +149,7 @@ keyboard::Keyboard::Keyboard(wlr_keyboard *kb)
     xkb_context_unref(context);
     wlr_keyboard_set_repeat_info(keyboard, 25, 500);
 
-    wlr_seat_set_keyboard(server.seat, keyboard);
+    wlr_seat_set_keyboard(server.seat.seat, keyboard);
 }
 
 void keyboard::new_keyboard(wlr_input_device *device) {
@@ -144,8 +173,8 @@ void keyboard::modifiers(wl_listener *listener, void *data) {
     Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
     Server &server = Server::instance();
 
-    wlr_seat_set_keyboard(server.seat, keyboard->keyboard);
-    wlr_seat_keyboard_notify_modifiers(server.seat, &keyboard->keyboard->modifiers);
+    wlr_seat_set_keyboard(server.seat.seat, keyboard->keyboard);
+    wlr_seat_keyboard_notify_modifiers(server.seat.seat, &keyboard->keyboard->modifiers);
 }
 
 void keyboard::key(wl_listener *listener, void *data) {
@@ -168,8 +197,9 @@ void keyboard::key(wl_listener *listener, void *data) {
     }
 
     if(!handled) {
-        wlr_seat_set_keyboard(server.seat, keyboard->keyboard);
-        wlr_seat_keyboard_notify_key(server.seat, event->time_msec, event->keycode, event->state);
+        wlr_seat_set_keyboard(server.seat.seat, keyboard->keyboard);
+        wlr_seat_keyboard_notify_key(server.seat.seat, event->time_msec, event->keycode,
+                                     event->state);
     }
 }
 
