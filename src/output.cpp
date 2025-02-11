@@ -47,38 +47,36 @@ output::Output::Output(wlr_output *output)
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
 }
 
+void output::Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, wlr_scene_tree *tree,
+                                     bool exclusive) {
+    wlr_scene_node *node;
+    wl_list_for_each(node, &tree->children, link) {
+        layer_shell::LayerSurface *surface = static_cast<layer_shell::LayerSurface *>(node->data);
+        if(!surface || !surface->layer_surface->initialized)
+            continue;
+        if((surface->scene->layer_surface->current.exclusive_zone > 0) != exclusive)
+            continue;
+
+        wlr_scene_layer_surface_v1_configure(surface->scene, full_area, usable_area);
+    }
+}
+
 void output::Output::arrange() {
-    Server &server = Server::instance();
+    wlr_box full_area = { 0 };
+    wlr_output_effective_resolution(output, &full_area.width, &full_area.height);
+    wlr_box usable_area = full_area;
 
-    wlr_box usable_area { 0 };
-    wlr_output_effective_resolution(output, &usable_area.width, &usable_area.height);
-    wlr_box full_area = usable_area;
-
-    for(auto &layer : { server.layers.shell_background, server.layers.shell_bottom,
-                        server.layers.shell_top, server.layers.shell_overlay }) {
-        wlr_scene_node *node;
-        wl_list_for_each(node, &layer->children, link) {
-            layer_shell::LayerSurface *surface =
-                static_cast<layer_shell::LayerSurface *>(node->data);
-            if(!surface || !surface->layer_surface->initialized)
-                continue;
-            if(surface->layer_surface->current.exclusive_zone > 0)
-                wlr_scene_layer_surface_v1_configure(surface->scene, &full_area, &usable_area);
-        }
+    for(auto &layer :
+        { layers.shell_overlay, layers.shell_top, layers.shell_bottom, layers.shell_background }) {
+        arrange_surface(&full_area, &usable_area, layer, true);
     }
 
-    for(auto &layer : { server.layers.shell_background, server.layers.shell_bottom,
-                        server.layers.shell_top, server.layers.shell_overlay }) {
-        wlr_scene_node *node;
-        wl_list_for_each(node, &layer->children, link) {
-            layer_shell::LayerSurface *surface =
-                static_cast<layer_shell::LayerSurface *>(node->data);
-            if(!surface || !surface->layer_surface->initialized)
-                continue;
-            if(surface->layer_surface->current.exclusive_zone <= 0)
-                wlr_scene_layer_surface_v1_configure(surface->scene, &full_area, &usable_area);
-        }
+    for(auto &layer :
+        { layers.shell_overlay, layers.shell_top, layers.shell_bottom, layers.shell_background }) {
+        arrange_surface(&full_area, &usable_area, layer, false);
     }
+
+    // TODO: reset focus
 }
 
 void output::new_output(wl_listener *listener, void *data) {

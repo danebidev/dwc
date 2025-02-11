@@ -14,12 +14,16 @@ namespace output {
             wlr_scene_tree* shell_overlay;
         } layers;
 
+        /*wlr_box* usable_area;*/
+
         wrapper::Listener<Output> frame;
         wrapper::Listener<Output> request_state;
         wrapper::Listener<Output> destroy;
 
         Output(wlr_output* output);
 
+        void arrange_surface(wlr_box* full_area, wlr_box* usable_area, wlr_scene_tree* tree,
+                             bool exclusive);
         void arrange();
     };
 
