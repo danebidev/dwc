@@ -105,7 +105,8 @@ void cursor::cursor_button(wl_listener *listener, void *data) {
     }
     else {
         double sx, sy;
-        wlr_surface *surface = nullptr;
+        wlr_surface *surface = NULL;
+
         xdg_shell::Toplevel *toplevel =
             server.toplevel_at(server.cursor->x, server.cursor->y, surface, sx, sy);
         if(toplevel && surface && surface->mapped) {
@@ -117,6 +118,7 @@ void cursor::cursor_button(wl_listener *listener, void *data) {
             server.layer_surface_at(server.cursor->x, server.cursor->y, surface, sx, sy);
         if(layer_surface && surface && surface->mapped) {
             layer_surface->handle_focus();
+            return;
         }
     }
 }

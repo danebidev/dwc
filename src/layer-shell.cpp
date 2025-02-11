@@ -15,7 +15,7 @@ layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, outpu
       node_destroy(this, layer_shell::destroy, &layer_surface->events.destroy),
       new_popup(this, layer_shell::surface_commit, &layer_surface->events.new_popup) {
     layer_surface->data = this;
-    scene->tree->node.data = this;
+    tree->node.data = this;
 }
 
 bool layer_shell::LayerSurface::should_focus() {

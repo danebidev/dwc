@@ -7,6 +7,7 @@
 
 xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
     : toplevel(xdg_toplevel),
+      scene_tree(wlr_scene_xdg_surface_create(Server::instance().layers.floating, toplevel->base)),
 
       map(this, xdg_toplevel_map, &xdg_toplevel->base->surface->events.map),
       unmap(this, xdg_toplevel_unmap, &xdg_toplevel->base->surface->events.unmap),
@@ -17,7 +18,10 @@ xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
       request_resize(this, xdg_toplevel_request_resize, &xdg_toplevel->events.request_resize),
       request_maximize(this, xdg_toplevel_request_maximize, &xdg_toplevel->events.request_maximize),
       request_fullscreen(this, xdg_toplevel_request_fullscreen,
-                         &xdg_toplevel->events.request_fullscreen) {}
+                         &xdg_toplevel->events.request_fullscreen) {
+    toplevel->base->data = scene_tree;
+    scene_tree->node.data = this;
+}
 
 xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent)
     : commit(this, xdg_popup_commit, &xdg_popup->base->surface->events.commit),
@@ -54,14 +58,9 @@ void xdg_shell::focus_toplevel(Toplevel* toplevel) {
 }
 
 void xdg_shell::new_xdg_toplevel(wl_listener* listener, void* data) {
-    Server& server = Server::instance();
     wlr_xdg_toplevel* xdg_toplevel = static_cast<wlr_xdg_toplevel*>(data);
 
-    Toplevel* toplevel = new Toplevel(xdg_toplevel);
-    // Adds toplevel to scene
-    toplevel->scene_tree = wlr_scene_xdg_surface_create(&server.scene->tree, xdg_toplevel->base);
-    toplevel->scene_tree->node.data = toplevel;
-    xdg_toplevel->base->data = toplevel->scene_tree;
+    new Toplevel(xdg_toplevel);
 }
 
 void xdg_shell::new_xdg_popup(wl_listener* listener, void* data) {

@@ -278,14 +278,13 @@ void Server::begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode
 
 template <typename T>
 T* Server::surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy) {
-    Server& server = Server::instance();
-    wlr_scene_node* node = wlr_scene_node_at(&server.scene->tree.node, lx, ly, &sx, &sy);
+    wlr_scene_node* node = wlr_scene_node_at(&scene->tree.node, lx, ly, &sx, &sy);
     if(!node || node->type != WLR_SCENE_NODE_BUFFER)
         return nullptr;
 
     wlr_scene_buffer* scene_buffer = wlr_scene_buffer_from_node(node);
     wlr_scene_surface* scene_surface = wlr_scene_surface_try_from_buffer(scene_buffer);
-    if(!scene_surface)
+    if(!scene_surface || !scene_surface->surface)
         return nullptr;
 
     surface = scene_surface->surface;
@@ -305,10 +304,19 @@ T* Server::surface_at(double lx, double ly, wlr_surface*& surface, double& sx, d
 // Necessary to force the instatiation of all templates we need
 xdg_shell::Toplevel* Server::toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
                                          double& sy) {
-    return surface_at<xdg_shell::Toplevel>(lx, ly, surface, sx, sy);
+    xdg_shell::Toplevel* toplevel = surface_at<xdg_shell::Toplevel>(lx, ly, surface, sx, sy);
+    if(surface && surface->mapped && strcmp(surface->role->name, "zwlr_layer_surface_v1") != 0)
+        return toplevel;
+    else
+        return nullptr;
 }
 
 layer_shell::LayerSurface* Server::layer_surface_at(double lx, double ly, wlr_surface*& surface,
                                                     double& sx, double& sy) {
-    return surface_at<layer_shell::LayerSurface>(lx, ly, surface, sx, sy);
+    layer_shell::LayerSurface* layer_surface =
+        surface_at<layer_shell::LayerSurface>(lx, ly, surface, sx, sy);
+    if(surface && surface->mapped && strcmp(surface->role->name, "zwlr_layer_surface_v1") == 0)
+        return layer_surface;
+    else
+        return nullptr;
 }
