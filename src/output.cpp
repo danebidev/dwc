@@ -107,6 +107,7 @@ void output::request_state(wl_listener *listener, void *data) {
     const wlr_output_event_request_state *event =
         static_cast<wlr_output_event_request_state *>(data);
     wlr_output_commit_state(output->output, event->state);
+    output->arrange();
 }
 
 void output::destroy(wl_listener *listener, void *data) {
