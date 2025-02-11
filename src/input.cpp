@@ -84,6 +84,12 @@ cursor::Cursor::Cursor()
       frame(this, cursor::cursor_frame, &cursor->events.frame) {}
 
 cursor::Cursor::~Cursor() {
+    motion.free();
+    motion_absolute.free();
+    button.free();
+    axis.free();
+    frame.free();
+
     wlr_xcursor_manager_destroy(cursor_mgr);
     wlr_cursor_destroy(cursor);
 }

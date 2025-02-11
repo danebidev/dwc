@@ -54,7 +54,7 @@ void output::Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, w
         layer_shell::LayerSurface *surface = static_cast<layer_shell::LayerSurface *>(node->data);
         if(!surface || !surface->layer_surface->initialized)
             continue;
-        if((surface->scene->layer_surface->current.exclusive_zone > 0) != exclusive)
+        if((surface->layer_surface->current.exclusive_zone > 0) != exclusive)
             continue;
 
         wlr_scene_layer_surface_v1_configure(surface->scene, full_area, usable_area);

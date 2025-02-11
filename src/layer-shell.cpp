@@ -47,6 +47,8 @@ void layer_shell::new_surface(wl_listener *listener, void *data) {
         if(server.outputs.empty()) {
             wlr_log(WLR_ERROR, "no output to assign layer surface '%s' to",
                     layer_surface->namespace_);
+            wlr_layer_surface_v1_destroy(layer_surface);
+            return;
         }
         layer_surface->output = server.outputs[0]->output;
     }
