@@ -8,7 +8,7 @@
 #include "wlr.hpp"
 #include "xdg-shell.hpp"
 
-struct RootLayers {
+struct Root {
     wlr_scene_tree* shell_background;
     wlr_scene_tree* shell_bottom;
     wlr_scene_tree* shell_top;
@@ -19,7 +19,7 @@ struct RootLayers {
     wlr_scene_tree* popups;
     wlr_scene_tree* seat;
 
-    RootLayers(wlr_scene_tree* parent);
+    Root(wlr_scene_tree* parent);
 };
 
 class Server {
@@ -40,7 +40,7 @@ class Server {
     //  - floating
     //  - fullscreen
     wlr_scene* scene;
-    RootLayers layers;
+    Root root;
 
     wlr_scene_output_layout* scene_layout;
 

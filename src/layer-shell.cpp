@@ -5,7 +5,7 @@
 layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
     : layer_surface(scene->layer_surface),
       scene(scene),
-      popup_tree(wlr_scene_tree_create(Server::instance().layers.popups)),
+      popup_tree(wlr_scene_tree_create(Server::instance().root.popups)),
       tree(scene->tree),
       output(output),
       map(this, layer_shell::map, &layer_surface->surface->events.map),

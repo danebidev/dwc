@@ -35,10 +35,10 @@ output::Output::Output(wlr_output *output)
     wlr_output_layout_output *layout_output =
         wlr_output_layout_add_auto(server.output_layout, output);
 
-    layers.shell_background = wlr_scene_tree_create(server.layers.shell_background);
-    layers.shell_bottom = wlr_scene_tree_create(server.layers.shell_bottom);
-    layers.shell_top = wlr_scene_tree_create(server.layers.shell_top);
-    layers.shell_overlay = wlr_scene_tree_create(server.layers.shell_overlay);
+    layers.shell_background = wlr_scene_tree_create(server.root.shell_background);
+    layers.shell_bottom = wlr_scene_tree_create(server.root.shell_bottom);
+    layers.shell_top = wlr_scene_tree_create(server.root.shell_top);
+    layers.shell_overlay = wlr_scene_tree_create(server.root.shell_overlay);
 
     // Adds output to scene graph
     wlr_scene_output *scene_output = wlr_scene_output_create(server.scene, output);

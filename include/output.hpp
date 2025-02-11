@@ -14,8 +14,6 @@ namespace output {
             wlr_scene_tree* shell_overlay;
         } layers;
 
-        /*wlr_box* usable_area;*/
-
         wrapper::Listener<Output> frame;
         wrapper::Listener<Output> request_state;
         wrapper::Listener<Output> destroy;

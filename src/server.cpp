@@ -9,7 +9,7 @@
 #include "output.hpp"
 #include "wlr.hpp"
 
-RootLayers::RootLayers(wlr_scene_tree* parent)
+Root::Root(wlr_scene_tree* parent)
     : shell_background(wlr_scene_tree_create(parent)),
       shell_bottom(wlr_scene_tree_create(parent)),
       shell_top(wlr_scene_tree_create(parent)),
@@ -43,7 +43,7 @@ Server::Server()
 
       // Creates the scene graph, that handles all rendering and damage tracking
       scene(wlr_scene_create()),
-      layers(&scene->tree),
+      root(&scene->tree),
 
       // Attaches an output layout to a scene, to synchronize the positions of scene
       // outputs with the positions of corresponding layout outputs
@@ -54,7 +54,7 @@ Server::Server()
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
 
       // Seat
-      seat("seat0", display, layers.seat),
+      seat("seat0", display, root.seat),
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),
@@ -89,6 +89,8 @@ Server::Server()
     // Needed for inter-client data transfer
     // (copy-and-paste, drag-and-drop, etc.)
     wlr_data_device_manager_create(display);
+
+    wlr_xdg_output_manager_v1_create(display, output_layout);
 
     wlr_cursor_attach_output_layout(cursor.cursor, output_layout);
 }

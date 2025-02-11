@@ -7,7 +7,7 @@
 
 xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
     : toplevel(xdg_toplevel),
-      scene_tree(wlr_scene_xdg_surface_create(Server::instance().layers.floating, toplevel->base)),
+      scene_tree(wlr_scene_xdg_surface_create(Server::instance().root.floating, toplevel->base)),
 
       map(this, xdg_toplevel_map, &xdg_toplevel->base->surface->events.map),
       unmap(this, xdg_toplevel_unmap, &xdg_toplevel->base->surface->events.unmap),
