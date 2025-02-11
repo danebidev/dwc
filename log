@@ -1,0 +1,38 @@
+[2025-02-11 23:40:17.289] [info] Using configuration file /etc/xdg/waybar/config.jsonc
+[2025-02-11 23:40:17.290] [info] Using CSS file /etc/xdg/waybar/style.css
+[2025-02-11 23:40:17.298] [warning] module sway/workspaces: Disabling module "sway/workspaces", Socket path is empty
+[2025-02-11 23:40:17.301] [warning] module sway/mode: Disabling module "sway/mode", Socket path is empty
+[2025-02-11 23:40:17.305] [warning] module sway/scratchpad: Disabling module "sway/scratchpad", Socket path is empty
+[2025-02-11 23:40:17.306] [error] media stopped unexpectedly, is it endless?
+[2025-02-11 23:40:17.309] [warning] module sway/window: Disabling module "sway/window", Socket path is empty
+[2025-02-11 23:40:17.310] [warning] module mpd: Unknown module: mpd
+[2025-02-11 23:40:17.310] [warning] module idle_inhibitor: Disabling module "idle_inhibitor", idle-inhibit not available
+[2025-02-11 23:40:17.310] [warning] module network: Unknown module: network
+[2025-02-11 23:40:17.310] [warning] module backlight: Disabling module "backlight", No backlight found
+[2025-02-11 23:40:17.310] [warning] module keyboard-state: Unknown module: keyboard-state
+[2025-02-11 23:40:17.314] [warning] module sway/language: Disabling module "sway/language", Socket path is empty
+[2025-02-11 23:40:17.315] [warning] No batteries.
+[2025-02-11 23:40:17.315] [warning] No battery named BAT2
+[2025-02-11 23:40:17.315] [warning] module tray: Unknown module: tray
+[2025-02-11 23:40:17.315] [warning] Error while creating the menu : Failed to expand file: $HOME/.config/waybar/power_menu.xml. Menu popup not activated.
+[2025-02-11 23:40:17.327] [warning] module sway/workspaces: Disabling module "sway/workspaces", Socket path is empty
+[2025-02-11 23:40:17.331] [warning] module sway/mode: Disabling module "sway/mode", Socket path is empty
+[2025-02-11 23:40:17.335] [warning] module sway/scratchpad: Disabling module "sway/scratchpad", Socket path is empty
+[2025-02-11 23:40:17.337] [error] media stopped unexpectedly, is it endless?
+[2025-02-11 23:40:17.339] [warning] module sway/window: Disabling module "sway/window", Socket path is empty
+[2025-02-11 23:40:17.339] [warning] module mpd: Unknown module: mpd
+[2025-02-11 23:40:17.340] [warning] module idle_inhibitor: Disabling module "idle_inhibitor", idle-inhibit not available
+[2025-02-11 23:40:17.340] [warning] module network: Unknown module: network
+[2025-02-11 23:40:17.340] [warning] module backlight: Disabling module "backlight", No backlight found
+[2025-02-11 23:40:17.340] [warning] module keyboard-state: Unknown module: keyboard-state
+[2025-02-11 23:40:17.344] [warning] module sway/language: Disabling module "sway/language", Socket path is empty
+[2025-02-11 23:40:17.344] [warning] No batteries.
+[2025-02-11 23:40:17.344] [warning] No battery named BAT2
+[2025-02-11 23:40:17.344] [warning] module tray: Unknown module: tray
+[2025-02-11 23:40:17.344] [warning] Error while creating the menu : Failed to expand file: $HOME/.config/waybar/power_menu.xml. Menu popup not activated.
+[2025-02-11 23:40:17.548] [error] Failed to query power-profiles-daemon via dbus: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name net.hadess.PowerProfiles was not provided by any .service files
+[2025-02-11 23:40:17.548] [error] Failed to query power-profiles-daemon via dbus: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name net.hadess.PowerProfiles was not provided by any .service files
+[2025-02-11 23:40:17.550] [info] Bar configured (width: 346, height: 30) for output: HDMI-A-1
+[2025-02-11 23:40:17.550] [info] Bar configured (width: 346, height: 30) for output: DP-3
+[2025-02-11 23:40:17.552] [info] Bar configured (width: 1920, height: 30) for output: HDMI-A-1
+[2025-02-11 23:40:17.552] [info] Bar configured (width: 1920, height: 30) for output: DP-3

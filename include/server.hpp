@@ -75,7 +75,6 @@ class Server {
     wrapper::Listener<Server> new_output;
 
     wrapper::Listener<Server> new_xdg_toplevel;
-    wrapper::Listener<Server> new_xdg_popup;
     wrapper::Listener<Server> new_input;
 
     wrapper::Listener<Server> new_layer_shell_surface;

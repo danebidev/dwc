@@ -13,7 +13,7 @@ layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, outpu
       surface_commit(this, layer_shell::surface_commit, &layer_surface->surface->events.commit),
       output_destroy(this, layer_shell::output_destroy, &output->output->events.destroy),
       node_destroy(this, layer_shell::destroy, &layer_surface->events.destroy),
-      new_popup(this, layer_shell::surface_commit, &layer_surface->events.new_popup) {
+      new_popup(this, layer_shell::new_popup, &layer_surface->events.new_popup) {
     layer_surface->data = this;
     tree->node.data = this;
 }
@@ -126,5 +126,5 @@ void layer_shell::new_popup(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
     wlr_xdg_popup *xdg_popup = static_cast<wlr_xdg_popup *>(data);
 
-    surface->popups.push_back(new xdg_shell::Popup(xdg_popup, surface->tree));
+    surface->popups.push_back(new xdg_shell::Popup(xdg_popup, surface->scene->tree));
 }

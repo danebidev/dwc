@@ -18,25 +18,27 @@ namespace xdg_shell {
         wrapper::Listener<Toplevel> request_maximize;
         wrapper::Listener<Toplevel> request_fullscreen;
 
+        wrapper::Listener<Toplevel> new_popup;
+
         Toplevel(wlr_xdg_toplevel* toplevel);
     };
 
     struct Popup {
         wlr_xdg_popup* popup;
 
+        wlr_scene_tree* scene;
+
         wrapper::Listener<Popup> commit;
         wrapper::Listener<Popup> destroy;
+        wrapper::Listener<Popup> new_popup;
 
-        Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent);
+        Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* popup);
     };
 
     void focus_toplevel(Toplevel* toplevel);
 
     // Called when a surface is created by a client
     void new_xdg_toplevel(wl_listener* listener, void* data);
-
-    // Called when a surface is created by a client
-    void new_xdg_popup(wl_listener* listener, void* data);
 
     // Called when a surface gets mapped
     void xdg_toplevel_map(wl_listener* listener, void* data);
@@ -62,6 +64,10 @@ namespace xdg_shell {
     // Called when an xdg_toplevel requests fullscreen
     void xdg_toplevel_request_fullscreen(wl_listener* listener, void* data);
 
+    // Called when a popup is created by a client
+    void xdg_toplevel_new_popup(wl_listener* listener, void* data);
+
     void xdg_popup_commit(wl_listener* listener, void* data);
     void xdg_popup_destroy(wl_listener* listener, void* data);
+    void xdg_popup_new_popup(wl_listener* listener, void* data);
 }

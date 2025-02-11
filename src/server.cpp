@@ -60,7 +60,6 @@ Server::Server()
       new_output(this, output::new_output, &backend->events.new_output),
 
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
-      new_xdg_popup(this, xdg_shell::new_xdg_popup, &xdg_shell->events.new_popup),
       new_input(this, seat::new_input, &backend->events.new_input),
 
       new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface) {
@@ -104,7 +103,6 @@ Server::~Server() {
     new_output.free();
 
     new_xdg_toplevel.free();
-    new_xdg_popup.free();
 
     new_layer_shell_surface.free();
 

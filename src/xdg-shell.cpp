@@ -9,25 +9,31 @@ xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
     : toplevel(xdg_toplevel),
       scene_tree(wlr_scene_xdg_surface_create(Server::instance().root.floating, toplevel->base)),
 
-      map(this, xdg_toplevel_map, &xdg_toplevel->base->surface->events.map),
-      unmap(this, xdg_toplevel_unmap, &xdg_toplevel->base->surface->events.unmap),
-      commit(this, xdg_toplevel_commit, &xdg_toplevel->base->surface->events.commit),
-      destroy(this, xdg_toplevel_destroy, &xdg_toplevel->events.destroy),
+      map(this, xdg_toplevel_map, &toplevel->base->surface->events.map),
+      unmap(this, xdg_toplevel_unmap, &toplevel->base->surface->events.unmap),
+      commit(this, xdg_toplevel_commit, &toplevel->base->surface->events.commit),
+      destroy(this, xdg_toplevel_destroy, &toplevel->events.destroy),
 
-      request_move(this, xdg_toplevel_request_move, &xdg_toplevel->events.request_move),
-      request_resize(this, xdg_toplevel_request_resize, &xdg_toplevel->events.request_resize),
-      request_maximize(this, xdg_toplevel_request_maximize, &xdg_toplevel->events.request_maximize),
+      request_move(this, xdg_toplevel_request_move, &toplevel->events.request_move),
+      request_resize(this, xdg_toplevel_request_resize, &toplevel->events.request_resize),
+      request_maximize(this, xdg_toplevel_request_maximize, &toplevel->events.request_maximize),
       request_fullscreen(this, xdg_toplevel_request_fullscreen,
-                         &xdg_toplevel->events.request_fullscreen) {
+                         &toplevel->events.request_fullscreen),
+
+      new_popup(this, xdg_toplevel_new_popup, &toplevel->base->events.new_popup) {
     toplevel->base->data = scene_tree;
     scene_tree->node.data = this;
 }
 
-xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent)
+xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent_tree)
     : popup(xdg_popup),
-      commit(this, xdg_popup_commit, &xdg_popup->base->surface->events.commit),
-      destroy(this, xdg_popup_destroy, &xdg_popup->events.destroy) {
-    xdg_popup->base->data = wlr_scene_xdg_surface_create(parent, xdg_popup->base);
+
+      scene(wlr_scene_xdg_surface_create(parent_tree, popup->base)),
+
+      commit(this, xdg_popup_commit, &popup->base->surface->events.commit),
+      destroy(this, xdg_popup_destroy, &popup->events.destroy),
+      new_popup(this, xdg_popup_new_popup, &popup->base->events.new_popup) {
+    xdg_popup->base->data = scene;
 }
 
 // Only for keyboard focus
@@ -62,13 +68,6 @@ void xdg_shell::new_xdg_toplevel(wl_listener* listener, void* data) {
     wlr_xdg_toplevel* xdg_toplevel = static_cast<wlr_xdg_toplevel*>(data);
 
     new Toplevel(xdg_toplevel);
-}
-
-void xdg_shell::new_xdg_popup(wl_listener* listener, void* data) {
-    wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
-    wlr_xdg_surface* parent = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-    wlr_scene_tree* parent_tree = static_cast<wlr_scene_tree*>(parent->data);
-    new Popup(xdg_popup, parent_tree);
 }
 
 void xdg_shell::xdg_toplevel_map(wl_listener* listener, void* data) {
@@ -126,6 +125,13 @@ void xdg_shell::xdg_toplevel_request_fullscreen(wl_listener* listener, void* dat
         wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
 }
 
+void xdg_shell::xdg_toplevel_new_popup(wl_listener* listener, void* data) {
+    Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
+
+    new Popup(xdg_popup, toplevel->scene_tree);
+}
+
 void xdg_shell::xdg_popup_commit(wl_listener* listener, void* data) {
     Popup* popup = static_cast<wrapper::Listener<Popup>*>(listener)->container;
 
@@ -135,4 +141,11 @@ void xdg_shell::xdg_popup_commit(wl_listener* listener, void* data) {
 
 void xdg_shell::xdg_popup_destroy(wl_listener* listener, void* data) {
     delete static_cast<wrapper::Listener<Popup>*>(listener)->container;
+}
+
+void xdg_shell::xdg_popup_new_popup(wl_listener* listener, void* data) {
+    Popup* popup = static_cast<wrapper::Listener<Popup>*>(listener)->container;
+    wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
+
+    new Popup(xdg_popup, popup->scene);
 }
