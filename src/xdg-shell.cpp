@@ -24,7 +24,8 @@ xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
 }
 
 xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent)
-    : commit(this, xdg_popup_commit, &xdg_popup->base->surface->events.commit),
+    : popup(xdg_popup),
+      commit(this, xdg_popup_commit, &xdg_popup->base->surface->events.commit),
       destroy(this, xdg_popup_destroy, &xdg_popup->events.destroy) {
     xdg_popup->base->data = wlr_scene_xdg_surface_create(parent, xdg_popup->base);
 }
