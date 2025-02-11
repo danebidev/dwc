@@ -81,8 +81,8 @@ void xdg_shell::xdg_toplevel_unmap(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
 
     // Reset cursor mode if the toplevel was currently focused
-    if(toplevel == server.grabbed_toplevel)
-        cursor::reset_cursor_mode();
+    if(toplevel == server.cursor.grabbed_toplevel)
+        server.cursor.reset_cursor_mode();
 
     server.toplevels.erase(std::remove(server.toplevels.begin(), server.toplevels.end(), toplevel),
                            server.toplevels.end());
@@ -104,13 +104,13 @@ void xdg_shell::xdg_toplevel_destroy(wl_listener* listener, void* data) {
 
 void xdg_shell::xdg_toplevel_request_move(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-    Server::instance().begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
+    Server::instance().cursor.begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
 }
 
 void xdg_shell::xdg_toplevel_request_resize(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
     wlr_xdg_toplevel_resize_event* event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-    Server::instance().begin_interactive(toplevel, cursor::CursorMode::RESIZE, event->edges);
+    Server::instance().cursor.begin_interactive(toplevel, cursor::CursorMode::RESIZE, event->edges);
 }
 
 void xdg_shell::xdg_toplevel_request_maximize(wl_listener* listener, void* data) {

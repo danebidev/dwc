@@ -2,6 +2,7 @@
 
 #include "wlr-wrapper.hpp"
 #include "wlr.hpp"
+#include "xdg-shell.hpp"
 
 namespace seat {
     struct Seat {
@@ -28,7 +29,40 @@ namespace seat {
 namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };
 
-    void reset_cursor_mode();
+    struct Cursor {
+        wlr_cursor* cursor;
+        wlr_xcursor_manager* cursor_mgr;
+        cursor::CursorMode cursor_mode;
+
+        // Grab stuff
+        xdg_shell::Toplevel* grabbed_toplevel;
+        double grab_x, grab_y;
+        wlr_box grab_geobox;
+        uint32_t resize_edges;
+
+        wrapper::Listener<Cursor> motion;
+        wrapper::Listener<Cursor> motion_absolute;
+        wrapper::Listener<Cursor> button;
+        wrapper::Listener<Cursor> axis;
+        wrapper::Listener<Cursor> frame;
+
+        Cursor();
+        ~Cursor();
+
+        void reset_cursor_mode();
+
+        // Should be called whenever the cursor moves for any reason
+        void process_motion(uint32_t time);
+
+        // "interactive mode" is the mode the compositor is in when pointer
+        // events don't get propagated to the client, but are consumed
+        // and used for some operation, like move and resize of windows
+        void begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode mode,
+                               uint32_t edges);
+
+        void process_cursor_move();
+        void process_cursor_resize();
+    };
 
     void new_pointer(wlr_input_device* device);
 
