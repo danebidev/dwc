@@ -8,13 +8,11 @@
 output::Output::Output(wlr_output *output)
     : output(output),
       // Adds output to scene graph
-      scene_output(wlr_scene_output_create(Server::instance().scene, output)),
+      scene_output(wlr_scene_output_create(server.scene, output)),
 
       frame(this, output::frame, &output->events.frame),
       request_state(this, output::request_state, &output->events.request_state),
       destroy(this, output::destroy, &output->events.destroy) {
-    Server &server = Server::instance();
-
     output->data = this;
 
     // Configures the output to use our allocator and renderer
@@ -47,7 +45,7 @@ output::Output::Output(wlr_output *output)
 
     // Add output to scene output layout
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
-    Server::instance().root.arrange();
+    server.root.arrange();
 }
 
 void output::Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, wlr_scene_tree *tree,
@@ -84,7 +82,7 @@ void output::Output::arrange_layers() {
 
 void output::Output::update_position() {
     struct wlr_box output_box;
-    wlr_output_layout_get_box(Server::instance().output_layout, output, &output_box);
+    wlr_output_layout_get_box(server.output_layout, output, &output_box);
     lx = output_box.x;
     ly = output_box.y;
     width = output_box.width;
@@ -94,12 +92,12 @@ void output::Output::update_position() {
 void output::new_output(wl_listener *listener, void *data) {
     wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
     Output *output = new Output(wlr_output);
-    Server::instance().outputs.push_back(output);
+    server.outputs.push_back(output);
 }
 
 void output::frame(wl_listener *listener, void *data) {
     Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-    wlr_scene *scene = Server::instance().scene;
+    wlr_scene *scene = server.scene;
     wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->output);
 
     wlr_scene_output_commit(scene_output, nullptr);
@@ -120,12 +118,8 @@ void output::request_state(wl_listener *listener, void *data) {
 
 void output::destroy(wl_listener *listener, void *data) {
     Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-    Server &server = Server::instance();
 
-    // TODO: Maybe switch to std::list for constant time removal?
-    // I don't actually need a vector anyway
-    server.outputs.erase(std::remove(server.outputs.begin(), server.outputs.end(), output),
-                         server.outputs.end());
+    server.outputs.remove(output);
 
     delete output;
 }

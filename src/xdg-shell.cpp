@@ -7,7 +7,7 @@
 
 xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
     : toplevel(xdg_toplevel),
-      scene_tree(wlr_scene_xdg_surface_create(Server::instance().root.floating, toplevel->base)),
+      scene_tree(wlr_scene_xdg_surface_create(server.root.floating, toplevel->base)),
 
       map(this, xdg_toplevel_map, &toplevel->base->surface->events.map),
       unmap(this, xdg_toplevel_unmap, &toplevel->base->surface->events.unmap),
@@ -41,8 +41,7 @@ void xdg_shell::focus_toplevel(Toplevel* toplevel) {
     if(toplevel == nullptr)
         return;
 
-    Server& server = Server::instance();
-    wlr_seat* seat = server.seat.seat;
+    wlr_seat* seat = server.input_manager.seat.seat;
     wlr_surface* prev_surface = seat->keyboard_state.focused_surface;
     wlr_surface* surface = toplevel->toplevel->base->surface;
 
@@ -72,20 +71,18 @@ void xdg_shell::new_xdg_toplevel(wl_listener* listener, void* data) {
 
 void xdg_shell::xdg_toplevel_map(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-    Server::instance().toplevels.push_back(toplevel);
+    server.toplevels.push_back(toplevel);
     focus_toplevel(toplevel);
 }
 
 void xdg_shell::xdg_toplevel_unmap(wl_listener* listener, void* data) {
-    Server& server = Server::instance();
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
 
     // Reset cursor mode if the toplevel was currently focused
-    if(toplevel == server.cursor.grabbed_toplevel)
-        server.cursor.reset_cursor_mode();
+    if(toplevel == server.input_manager.seat.cursor.grabbed_toplevel)
+        server.input_manager.seat.cursor.reset_cursor_mode();
 
-    server.toplevels.erase(std::remove(server.toplevels.begin(), server.toplevels.end(), toplevel),
-                           server.toplevels.end());
+    server.toplevels.remove(toplevel);
 }
 
 void xdg_shell::xdg_toplevel_commit(wl_listener* listener, void* data) {
@@ -104,13 +101,14 @@ void xdg_shell::xdg_toplevel_destroy(wl_listener* listener, void* data) {
 
 void xdg_shell::xdg_toplevel_request_move(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-    Server::instance().cursor.begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
+    server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
 }
 
 void xdg_shell::xdg_toplevel_request_resize(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
     wlr_xdg_toplevel_resize_event* event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-    Server::instance().cursor.begin_interactive(toplevel, cursor::CursorMode::RESIZE, event->edges);
+    server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::RESIZE,
+                                                       event->edges);
 }
 
 void xdg_shell::xdg_toplevel_request_maximize(wl_listener* listener, void* data) {

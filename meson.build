@@ -4,7 +4,7 @@ project(
   'c',
   version: '0.1',
   default_options: [
-    'cpp_std=c++20',
+    'cpp_std=c++23',
   ],
 )
 
@@ -111,15 +111,18 @@ libs = [
   dependency('wayland-protocols'),
   dependency('wlroots-0.19'),
   dependency('xkbcommon'),
+  dependency('libinput'),
 ]
 
 sources = [
+  'src/util.cpp',
   'src/main.cpp',
   'src/server.cpp',
   'src/output.cpp',
   'src/xdg-shell.cpp',
   'src/layer-shell.cpp',
   'src/input.cpp',
+  'src/root.cpp',
   protocol_sources,
   protocol_code,
 ]

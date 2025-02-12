@@ -1,5 +1,6 @@
 #pragma once
 
+#include "root.hpp"
 #include "wlr-wrapper.hpp"
 #include "wlr.hpp"
 
@@ -29,7 +30,6 @@ namespace output {
         void arrange_surface(wlr_box* full_area, wlr_box* usable_area, wlr_scene_tree* tree,
                              bool exclusive);
         void arrange_layers();
-
         void update_position();
     };
 

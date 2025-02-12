@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
         usage();
 
     try {
-        Server::instance().start(startup_cmd);
+        server.start(startup_cmd);
     }
     catch(const std::runtime_error &err) {
         wlr_log(WLR_ERROR, "%s", err.what());

@@ -5,7 +5,7 @@
 layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
     : layer_surface(scene->layer_surface),
       scene(scene),
-      popup_tree(wlr_scene_tree_create(Server::instance().root.layer_popups)),
+      popup_tree(wlr_scene_tree_create(server.root.layer_popups)),
       tree(scene->tree),
       output(output),
 
@@ -32,18 +32,15 @@ void layer_shell::LayerSurface::handle_focus() {
     if(!should_focus())
         return;
 
-    Server &server = Server::instance();
-
-    wlr_keyboard *keyboard = wlr_seat_get_keyboard(server.seat.seat);
+    wlr_keyboard *keyboard = wlr_seat_get_keyboard(server.input_manager.seat.seat);
 
     if(keyboard)
-        wlr_seat_keyboard_enter(server.seat.seat, layer_surface->surface, keyboard->keycodes,
-                                keyboard->num_keycodes, &keyboard->modifiers);
+        wlr_seat_keyboard_enter(server.input_manager.seat.seat, layer_surface->surface,
+                                keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 
 void layer_shell::new_surface(wl_listener *listener, void *data) {
     wlr_layer_surface_v1 *layer_surface = static_cast<wlr_layer_surface_v1 *>(data);
-    Server &server = Server::instance();
 
     if(!layer_surface->output) {
         if(server.outputs.empty()) {
@@ -52,7 +49,7 @@ void layer_shell::new_surface(wl_listener *listener, void *data) {
             wlr_layer_surface_v1_destroy(layer_surface);
             return;
         }
-        layer_surface->output = server.outputs[0]->output;
+        layer_surface->output = server.outputs.front()->output;
     }
 
     output::Output *output = static_cast<output::Output *>(layer_surface->output->data);

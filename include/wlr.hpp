@@ -1,14 +1,18 @@
 #pragma once
 
 // IWYU pragma: begin_exports
+#include <libinput.h>
 #include <wayland-server-core.h>
 
 #define static
 #define namespace namespace_
+#define class class_
+#define delete delete_
 
 extern "C" {
 #define WLR_USE_UNSTABLE 1
 #include <wlr/backend.h>
+#include <wlr/backend/libinput.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_compositor.h>
@@ -28,4 +32,6 @@ extern "C" {
 
 #undef static
 #undef namespace
+#undef class
+#undef delete
 // IWYU pragma: end_exports
