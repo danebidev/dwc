@@ -5,9 +5,10 @@
 layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
     : layer_surface(scene->layer_surface),
       scene(scene),
-      popup_tree(wlr_scene_tree_create(Server::instance().root.popups)),
+      popup_tree(wlr_scene_tree_create(Server::instance().root.layer_popups)),
       tree(scene->tree),
       output(output),
+
       map(this, layer_shell::map, &layer_surface->surface->events.map),
       unmap(this, layer_shell::unmap, &layer_surface->surface->events.unmap),
       surface_commit(this, layer_shell::surface_commit, &layer_surface->surface->events.commit),
@@ -16,7 +17,7 @@ layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, outpu
       new_popup(this, layer_shell::new_popup, &layer_surface->events.new_popup) {
     layer_surface->data = this;
     tree->node.data = this;
-    output->arrange();
+    output->arrange_layers();
 }
 
 bool layer_shell::LayerSurface::should_focus() {
@@ -89,7 +90,7 @@ void layer_shell::map(wl_listener *listener, void *data) {
         surface->handle_focus();
     }
 
-    surface->output->arrange();
+    surface->output->arrange_layers();
 }
 
 void layer_shell::unmap(wl_listener *listener, void *data) {
@@ -107,8 +108,10 @@ void layer_shell::surface_commit(wl_listener *listener, void *data) {
     }
 
     if(surface->layer_surface->initial_commit) {
-        wlr_layer_surface_v1_configure(surface->layer_surface, 0, 0);
-        surface->output->arrange();
+        wlr_layer_surface_v1_configure(surface->layer_surface,
+                                       surface->layer_surface->pending.desired_width,
+                                       surface->layer_surface->pending.desired_height);
+        surface->output->arrange_layers();
     }
 }
 

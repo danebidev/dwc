@@ -47,6 +47,7 @@ output::Output::Output(wlr_output *output)
 
     // Add output to scene output layout
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
+    Server::instance().root.arrange();
 }
 
 void output::Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, wlr_scene_tree *tree,
@@ -63,7 +64,7 @@ void output::Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, w
     }
 }
 
-void output::Output::arrange() {
+void output::Output::arrange_layers() {
     wlr_box full_area = { 0 };
     wlr_output_effective_resolution(output, &full_area.width, &full_area.height);
     wlr_box usable_area = full_area;
@@ -78,13 +79,12 @@ void output::Output::arrange() {
         arrange_surface(&full_area, &usable_area, layer, false);
     }
 
-    // TODO: reset focus
+    // TODO: handle focus
 }
 
 void output::Output::update_position() {
-    Server &server = Server::instance();
     struct wlr_box output_box;
-    wlr_output_layout_get_box(server.output_layout, output, &output_box);
+    wlr_output_layout_get_box(Server::instance().output_layout, output, &output_box);
     lx = output_box.x;
     ly = output_box.y;
     width = output_box.width;
@@ -95,10 +95,6 @@ void output::new_output(wl_listener *listener, void *data) {
     wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
     Output *output = new Output(wlr_output);
     Server::instance().outputs.push_back(output);
-}
-
-void output::arrange_outputs() {
-    for(auto &output : Server::instance().outputs) output->arrange();
 }
 
 void output::frame(wl_listener *listener, void *data) {
@@ -118,7 +114,8 @@ void output::request_state(wl_listener *listener, void *data) {
     const wlr_output_event_request_state *event =
         static_cast<wlr_output_event_request_state *>(data);
     wlr_output_commit_state(output->output, event->state);
-    output->arrange();
+    output->arrange_layers();
+    output->update_position();
 }
 
 void output::destroy(wl_listener *listener, void *data) {

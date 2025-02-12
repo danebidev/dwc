@@ -6,6 +6,7 @@
 namespace output {
     struct Output {
         wlr_output* output;
+        struct wlr_output_state pending;
 
         struct {
             wlr_scene_tree* shell_background;
@@ -27,7 +28,7 @@ namespace output {
 
         void arrange_surface(wlr_box* full_area, wlr_box* usable_area, wlr_scene_tree* tree,
                              bool exclusive);
-        void arrange();
+        void arrange_layers();
 
         void update_position();
     };
@@ -35,8 +36,6 @@ namespace output {
     // Called when a new output (monitor or display) becomes available
     // data is a wlr_output*
     void new_output(wl_listener* listener, void* data);
-
-    void arrange_outputs();
 
     // Called whenever an output wants to display a frame
     // Generally should be at the output's refresh rate

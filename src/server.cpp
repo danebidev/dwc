@@ -12,15 +12,19 @@
 Root::Root(wlr_scene_tree* parent)
     : shell_background(wlr_scene_tree_create(parent)),
       shell_bottom(wlr_scene_tree_create(parent)),
+      floating(wlr_scene_tree_create(parent)),
       shell_top(wlr_scene_tree_create(parent)),
       shell_overlay(wlr_scene_tree_create(parent)),
-
-      floating(wlr_scene_tree_create(parent)),
-      fullscreen(wlr_scene_tree_create(parent)),
-      popups(wlr_scene_tree_create(parent)),
+      layer_popups(wlr_scene_tree_create(parent)),
       seat(wlr_scene_tree_create(parent)) {}
 
 void Root::arrange() {
+    wlr_scene_node_set_enabled(&shell_background->node, true);
+    wlr_scene_node_set_enabled(&shell_bottom->node, true);
+    wlr_scene_node_set_enabled(&floating->node, true);
+    wlr_scene_node_set_enabled(&shell_top->node, true);
+    wlr_scene_node_set_enabled(&shell_overlay->node, true);
+
     for(auto& output : Server::instance().outputs) {
         wlr_scene_output_set_position(output->scene_output, output->lx, output->ly);
 
@@ -106,10 +110,7 @@ Server::Server()
     wlr_data_device_manager_create(display);
 
     wlr_xdg_output_manager_v1_create(display, output_layout);
-
     wlr_cursor_attach_output_layout(cursor.cursor, output_layout);
-
-    root.arrange();
 }
 
 Server::~Server() {
