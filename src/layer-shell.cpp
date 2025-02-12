@@ -16,6 +16,7 @@ layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, outpu
       new_popup(this, layer_shell::new_popup, &layer_surface->events.new_popup) {
     layer_surface->data = this;
     tree->node.data = this;
+    output->arrange();
 }
 
 bool layer_shell::LayerSurface::should_focus() {
@@ -99,20 +100,16 @@ void layer_shell::unmap(wl_listener *listener, void *data) {
 void layer_shell::surface_commit(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
 
-    bool arrange = false;
-
     if(surface->layer_surface->current.committed & WLR_LAYER_SURFACE_V1_STATE_LAYER) {
         wlr_scene_tree *new_tree =
             get_scene(surface->output, surface->layer_surface->current.layer);
         wlr_scene_node_reparent(&surface->scene->tree->node, new_tree);
-        arrange = true;
     }
 
-    if(!surface->layer_surface->configured)
+    if(surface->layer_surface->initial_commit) {
         wlr_layer_surface_v1_configure(surface->layer_surface, 0, 0);
-
-    if(arrange)
         surface->output->arrange();
+    }
 }
 
 void layer_shell::output_destroy(wl_listener *listener, void *data) {

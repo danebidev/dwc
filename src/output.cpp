@@ -7,10 +7,15 @@
 
 output::Output::Output(wlr_output *output)
     : output(output),
+      // Adds output to scene graph
+      scene_output(wlr_scene_output_create(Server::instance().scene, output)),
+
       frame(this, output::frame, &output->events.frame),
       request_state(this, output::request_state, &output->events.request_state),
       destroy(this, output::destroy, &output->events.destroy) {
     Server &server = Server::instance();
+
+    output->data = this;
 
     // Configures the output to use our allocator and renderer
     wlr_output_init_render(output, server.allocator, server.renderer);
@@ -39,9 +44,6 @@ output::Output::Output(wlr_output *output)
     layers.shell_bottom = wlr_scene_tree_create(server.root.shell_bottom);
     layers.shell_top = wlr_scene_tree_create(server.root.shell_top);
     layers.shell_overlay = wlr_scene_tree_create(server.root.shell_overlay);
-
-    // Adds output to scene graph
-    wlr_scene_output *scene_output = wlr_scene_output_create(server.scene, output);
 
     // Add output to scene output layout
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
@@ -79,10 +81,19 @@ void output::Output::arrange() {
     // TODO: reset focus
 }
 
+void output::Output::update_position() {
+    Server &server = Server::instance();
+    struct wlr_box output_box;
+    wlr_output_layout_get_box(server.output_layout, output, &output_box);
+    lx = output_box.x;
+    ly = output_box.y;
+    width = output_box.width;
+    height = output_box.height;
+}
+
 void output::new_output(wl_listener *listener, void *data) {
     wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
     Output *output = new Output(wlr_output);
-    wlr_output->data = output;
     Server::instance().outputs.push_back(output);
 }
 

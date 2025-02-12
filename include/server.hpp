@@ -20,6 +20,8 @@ struct Root {
     wlr_scene_tree* seat;
 
     Root(wlr_scene_tree* parent);
+
+    void arrange();
 };
 
 class Server {

@@ -14,6 +14,11 @@ namespace output {
             wlr_scene_tree* shell_overlay;
         } layers;
 
+        wlr_scene_output* scene_output;
+
+        int lx, ly;
+        int width, height;
+
         wrapper::Listener<Output> frame;
         wrapper::Listener<Output> request_state;
         wrapper::Listener<Output> destroy;
@@ -23,6 +28,8 @@ namespace output {
         void arrange_surface(wlr_box* full_area, wlr_box* usable_area, wlr_scene_tree* tree,
                              bool exclusive);
         void arrange();
+
+        void update_position();
     };
 
     // Called when a new output (monitor or display) becomes available
