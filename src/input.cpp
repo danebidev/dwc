@@ -198,7 +198,7 @@ void cursor::cursor_button(wl_listener *listener, void *data) {
     }
     else {
         double sx, sy;
-        wlr_surface *surface = NULL;
+        wlr_surface *surface = nullptr;
 
         xdg_shell::Toplevel *toplevel =
             server.toplevel_at(cursor->cursor->x, cursor->cursor->y, surface, sx, sy);
@@ -316,13 +316,20 @@ void keyboard::destroy(wl_listener *listener, void *data) {
     delete keyboard;
 }
 
-seat::SeatDevice::SeatDevice(input::InputDevice *device) : device(device), keyboard(nullptr) {}
+seat::SeatDevice::SeatDevice(input::InputDevice *device)
+    : device(device),
+      keyboard(nullptr) {}
+
+seat::SeatDevice::~SeatDevice() {
+    // TODO: destructor
+    // This should destroy devices and detach cursor from input devices
+}
 
 seat::Seat::Seat(const char *seat_name)
     : seat(wlr_seat_create(server.display, seat_name)),
 
       scene_tree(wlr_scene_tree_create(server.root.seat)),
-      drag_icons(wlr_scene_tree_create(scene_tree)),
+      /*drag_icons(wlr_scene_tree_create(scene_tree)),*/
 
       request_cursor(this, seat::request_cursor, &seat->events.request_set_cursor),
       request_set_selection(this, seat::request_set_selection,
@@ -343,7 +350,16 @@ void seat::Seat::add_device(input::InputDevice *device) {
     update_capabilities();
 }
 
-void seat::Seat::remove_device(input::InputDevice *device) {}
+void seat::Seat::remove_device(input::InputDevice *device) {
+    SeatDevice *seat_dev = get_device(device);
+    if(!seat_dev)
+        return;
+
+    wlr_log(WLR_DEBUG, "removing device %s from seat %s", device->identifier.c_str(), seat->name);
+
+    delete seat_dev;
+    update_capabilities();
+}
 
 seat::SeatDevice *seat::Seat::get_device(input::InputDevice *device) {
     for(auto &dev : devices) {
@@ -374,7 +390,7 @@ void seat::Seat::configure_xcursor() {
     uint cursor_size = 24;
 
     setenv("XCURSOR_SIZE", std::to_string(cursor_size).c_str(), true);
-    // TODO: load theme from some config?
+    // TODO: load theme from config?
     // setenv("XCURSOR_THEME", "", true);
 }
 
@@ -440,7 +456,7 @@ void seat::Seat::update_capabilities() {
     else {
         wlr_seat_set_capabilities(seat, caps);
         if(!(prev_caps & WL_SEAT_CAPABILITY_POINTER)) {
-            cursor.set_image("default", NULL);
+            cursor.set_image("default", nullptr);
         }
     }
 }
@@ -481,7 +497,8 @@ input::InputDevice::InputDevice(wlr_input_device *device)
 }
 
 input::InputManager::InputManager(wl_display *display, wlr_backend *backend)
-    : seat(DEFAULT_SEAT), new_input(this, input::new_input, &backend->events.new_input) {}
+    : seat(DEFAULT_SEAT),
+      new_input(this, input::new_input, &backend->events.new_input) {}
 
 void input::new_input(wl_listener *listener, void *data) {
     InputManager *input_manager =
