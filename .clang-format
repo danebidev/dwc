@@ -28,4 +28,5 @@ Cpp11BracedListStyle: false
 AllowShortIfStatementsOnASingleLine: Never
 AlignAfterOpenBracket: Align
 AllowAllArgumentsOnNextLine: false
+PackConstructorInitializers: Never
 ColumnLimit: 100
