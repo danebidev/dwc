@@ -216,7 +216,7 @@ void cursor::cursor_button(wl_listener *listener, void *data) {
         xdg_shell::Toplevel *toplevel =
             server.toplevel_at(cursor->cursor->x, cursor->cursor->y, surface, sx, sy);
         if(toplevel && surface && surface->mapped) {
-            focus_toplevel(toplevel);
+            server.input_manager.seat.focus_node(&toplevel->node);
             return;
         }
 
@@ -331,6 +331,20 @@ seat::SeatDevice::SeatDevice(input::InputDevice *device)
     : device(device),
       keyboard(nullptr) {}
 
+seat::SeatNode::SeatNode(nodes::Node *node, seat::Seat *seat)
+    : node(node),
+      seat(seat),
+
+      destroy(this, seat::seat_node_destroy, &node->events.node_destroy) {}
+
+seat::SeatNode::~SeatNode() {
+    std::list<SeatNode *> &stack =
+        node->has_exclusivity() ? seat->exclusivity_stack : seat->focus_stack;
+
+    stack.remove(this);
+    seat->focused_node = nullptr;
+}
+
 seat::SeatDevice::~SeatDevice() {
     // TODO: destructor
     // This should destroy devices and detach cursor from input devices
@@ -341,6 +355,7 @@ seat::Seat::Seat(const char *seat_name)
       scene_tree(wlr_scene_tree_create(server.root.seat)),
       /*drag_icons(wlr_scene_tree_create(scene_tree)),*/
 
+      new_node(this, seat::new_node, &server.root.events.new_node),
       request_cursor(this, seat::request_cursor, &seat->events.request_set_cursor),
       request_set_selection(this, seat::request_set_selection, &seat->events.request_set_selection),
       destroy(this, seat::destroy, &seat->events.destroy) {
@@ -370,6 +385,95 @@ void seat::Seat::remove_device(input::InputDevice *device) {
     devices.remove(seat_dev);
     delete seat_dev;
     update_capabilities();
+}
+
+seat::SeatNode *seat::Seat::get_seat_node(nodes::Node *node) {
+    for(auto &seat_node : (node->has_exclusivity() ? exclusivity_stack : focus_stack)) {
+        if(seat_node->node == node)
+            return seat_node;
+    }
+
+    SeatNode *seat_node = new SeatNode(node, this);
+    return seat_node;
+}
+
+seat::SeatNode *seat::Seat::get_next_focus() {
+    if(!exclusivity_stack.empty())
+        return exclusivity_stack.front();
+
+    if(!focus_stack.empty())
+        return focus_stack.front();
+
+    return nullptr;
+}
+
+void seat::Seat::focus_node(nodes::Node *node) {
+    if(focused_node && focused_node->node->has_exclusivity())
+        return;
+
+    if(!node)
+        focus_surface(nullptr);
+
+    SeatNode *seat_node = get_seat_node(node);
+
+    if(focused_node && focused_node == seat_node)
+        return;
+
+    std::list<SeatNode *> &stack = node->has_exclusivity() ? exclusivity_stack : focus_stack;
+    if(stack.remove(seat_node))
+        stack.push_front(seat_node);
+
+    if(node->type == nodes::NodeType::LAYER_SURFACE) {
+        focus_layer(node->val.layer_surface->layer_surface);
+        focused_node = seat_node;
+        return;
+    }
+
+    focus_surface(node->val.toplevel->toplevel->base->surface);
+    focused_node = seat_node;
+
+    wlr_xdg_toplevel_set_activated(node->val.toplevel->toplevel, true);
+    wlr_scene_node_raise_to_top(&node->val.toplevel->scene_tree->node);
+}
+
+void seat::Seat::focus_surface(wlr_surface *surface) {
+    if(focused_node && focused_node->node->type == nodes::NodeType::TOPLEVEL) {
+        wlr_xdg_toplevel_set_activated(focused_node->node->val.toplevel->toplevel, false);
+    }
+
+    if(!surface) {
+        wlr_seat_keyboard_notify_clear_focus(seat);
+        focused_node = nullptr;
+        return;
+    }
+
+    keyboard_notify_enter(surface);
+}
+
+void seat::Seat::focus_layer(wlr_layer_surface_v1 *layer) {
+    if(!layer) {
+        focus_surface(nullptr);
+        return;
+    }
+    assert(layer->surface->mapped);
+
+    if(!focused_node) {
+        focus_surface(layer->surface);
+        return;
+    }
+
+    if(focused_node->node->type != nodes::NodeType::LAYER_SURFACE)
+        focus_surface(layer->surface);
+
+    if(focused_node->node->type == nodes::NodeType::LAYER_SURFACE &&
+       focused_node->node->val.layer_surface->layer_surface == layer)
+        return;
+
+    if(!exclusivity_stack.empty() &&
+       layer->current.layer < focused_node->node->val.layer_surface->layer_surface->current.layer)
+        return;
+
+    focus_surface(layer->surface);
 }
 
 seat::SeatDevice *seat::Seat::get_device(input::InputDevice *device) {
@@ -472,6 +576,17 @@ void seat::Seat::update_capabilities() {
     }
 }
 
+void seat::new_node(wl_listener *listener, void *data) {
+    Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
+    nodes::Node *node = static_cast<nodes::Node *>(data);
+    SeatNode *seat_node = seat->get_seat_node(node);
+
+    std::list<SeatNode *> &stack =
+        node->has_exclusivity() ? seat->exclusivity_stack : seat->focus_stack;
+    stack.push_front(seat_node);
+    seat->focus_node(node);
+}
+
 void seat::request_cursor(wl_listener *listener, void *data) {
     Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
     wlr_seat_pointer_request_set_cursor_event *event =
@@ -502,6 +617,29 @@ void seat::destroy(wl_listener *listener, void *data) {
     seat->request_cursor.free();
     seat->request_set_selection.free();
     seat->destroy.free();
+}
+
+void seat::seat_node_destroy(wl_listener *listener, void *data) {
+    SeatNode *seat_node = static_cast<wrapper::Listener<SeatNode> *>(listener)->container;
+    Seat *seat = seat_node->seat;
+
+    bool had_focus = false;
+    bool exclusivity = seat_node->node->has_exclusivity();
+
+    std::list<SeatNode *> &stack = exclusivity ? seat->exclusivity_stack : seat->focus_stack;
+    if(!stack.empty() && stack.front() == seat_node)
+        had_focus = true;
+
+    delete seat_node;
+
+    if(!had_focus)
+        return;
+
+    SeatNode *focus = seat->get_next_focus();
+    if(!focus)
+        return;
+
+    seat->focus_node(focus->node);
 }
 
 input::InputDevice::InputDevice(wlr_input_device *device)

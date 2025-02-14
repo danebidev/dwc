@@ -1,5 +1,6 @@
 #pragma once
 
+#include "root.hpp"
 #include "wlr-wrapper.hpp"
 #include "wlr.hpp"
 
@@ -7,6 +8,7 @@ namespace xdg_shell {
     struct Toplevel {
         wlr_xdg_toplevel* toplevel;
         wlr_scene_tree* scene_tree;
+        nodes::Node node;
 
         wrapper::Listener<Toplevel> map;
         wrapper::Listener<Toplevel> unmap;
@@ -34,8 +36,6 @@ namespace xdg_shell {
 
         Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* popup);
     };
-
-    void focus_toplevel(Toplevel* toplevel);
 
     // Called when a surface is created by a client
     void new_xdg_toplevel(wl_listener* listener, void* data);

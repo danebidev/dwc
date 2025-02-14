@@ -8,23 +8,35 @@ namespace output {
     struct Output;
 }
 
+namespace layer_shell {
+    struct LayerSurface;
+}
+
+namespace xdg_shell {
+    struct Toplevel;
+}
+
 namespace nodes {
-    enum class NodeType { ROOT, OUTPUT, TOPLEVEL };
+    enum class NodeType { TOPLEVEL, LAYER_SURFACE };
 
     class Node {
         public:
-        Node(NodeType type)
-            : type(type) {
-            static int next_id = 1;
-            id = next_id++;
-            wl_signal_init(&destroy);
-        }
-
-        private:
         NodeType type;
-        size_t id;
+        union {
+            xdg_shell::Toplevel* toplevel;
+            layer_shell::LayerSurface* layer_surface;
+        } val;
 
-        wl_signal destroy;
+        Node(xdg_shell::Toplevel* toplevel);
+        Node(layer_shell::LayerSurface* layer_surface);
+
+        // Always false for toplevels
+        bool has_exclusivity();
+
+        struct {
+            // Called with the destroyed nodes::Node as data
+            wl_signal node_destroy;
+        } events;
     };
 
     // scene layout (from top to bottom):
@@ -42,7 +54,7 @@ namespace nodes {
     //     - [output trees]
     //   - shell_background
     //     - [output trees]
-    struct Root : Node {
+    struct Root {
         wlr_scene* scene;
 
         wlr_scene_tree* shell_background;
@@ -61,6 +73,9 @@ namespace nodes {
 
         void arrange();
 
-        wl_signal new_node;
+        struct {
+            // Called with the new nodes::Node as data
+            wl_signal new_node;
+        } events;
     };
 }

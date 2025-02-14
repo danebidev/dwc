@@ -8,6 +8,7 @@
 xdg_shell::Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
     : toplevel(xdg_toplevel),
       scene_tree(wlr_scene_xdg_surface_create(server.root.floating, toplevel->base)),
+      node(this),
 
       map(this, xdg_toplevel_map, &toplevel->base->surface->events.map),
       unmap(this, xdg_toplevel_unmap, &toplevel->base->surface->events.unmap),
@@ -36,33 +37,6 @@ xdg_shell::Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent_tree)
     xdg_popup->base->data = scene;
 }
 
-// Only for keyboard focus
-void xdg_shell::focus_toplevel(Toplevel* toplevel) {
-    if(toplevel == nullptr)
-        return;
-
-    wlr_seat* seat = server.input_manager.seat.seat;
-    wlr_surface* prev_surface = seat->keyboard_state.focused_surface;
-    wlr_surface* surface = toplevel->toplevel->base->surface;
-
-    if(prev_surface == surface)
-        return;
-
-    if(prev_surface) {
-        wlr_xdg_toplevel* prev_toplevel = wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
-        if(prev_toplevel)
-            wlr_xdg_toplevel_set_activated(prev_toplevel, false);
-    }
-
-    wlr_keyboard* keyboard = wlr_seat_get_keyboard(seat);
-    wlr_scene_node_raise_to_top(&toplevel->scene_tree->node);
-    wlr_xdg_toplevel_set_activated(toplevel->toplevel, true);
-
-    if(keyboard)
-        wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes, keyboard->num_keycodes,
-                                       &keyboard->modifiers);
-}
-
 void xdg_shell::new_xdg_toplevel(wl_listener* listener, void* data) {
     wlr_xdg_toplevel* xdg_toplevel = static_cast<wlr_xdg_toplevel*>(data);
 
@@ -72,7 +46,7 @@ void xdg_shell::new_xdg_toplevel(wl_listener* listener, void* data) {
 void xdg_shell::xdg_toplevel_map(wl_listener* listener, void* data) {
     Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
     server.toplevels.push_back(toplevel);
-    focus_toplevel(toplevel);
+    wl_signal_emit(&server.root.events.new_node, static_cast<void*>(&toplevel->node));
 }
 
 void xdg_shell::xdg_toplevel_unmap(wl_listener* listener, void* data) {
@@ -82,6 +56,7 @@ void xdg_shell::xdg_toplevel_unmap(wl_listener* listener, void* data) {
     if(toplevel == server.input_manager.seat.cursor.grabbed_toplevel)
         server.input_manager.seat.cursor.reset_cursor_mode();
 
+    wl_signal_emit(&toplevel->node.events.node_destroy, static_cast<void*>(&toplevel->node));
     server.toplevels.remove(toplevel);
 }
 

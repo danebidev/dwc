@@ -7,8 +7,7 @@
 #include "server.hpp"
 
 output::Output::Output(wlr_output *output)
-    : Node(nodes::NodeType::OUTPUT),
-      output(output),
+    : output(output),
       // Adds output to scene graph
       scene_output(wlr_scene_output_create(server.root.scene, output)),
 

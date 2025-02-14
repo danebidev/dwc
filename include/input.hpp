@@ -3,6 +3,7 @@
 #include <list>
 #include <string>
 
+#include "root.hpp"
 #include "wlr-wrapper.hpp"
 #include "wlr.hpp"
 #include "xdg-shell.hpp"
@@ -13,6 +14,7 @@ namespace input {
 
 namespace seat {
     class SeatDevice;
+    class Seat;
 }
 
 namespace cursor {
@@ -120,6 +122,19 @@ namespace keyboard {
 }
 
 namespace seat {
+    class SeatNode {
+        public:
+        nodes::Node* node;
+        // Keep track of the seat, so we can update the focus stack
+        seat::Seat* seat;
+
+        SeatNode(nodes::Node* node, seat::Seat* seat);
+        ~SeatNode();
+
+        private:
+        wrapper::Listener<SeatNode> destroy;
+    };
+
     class SeatDevice {
         public:
         input::InputDevice* device;
@@ -137,8 +152,17 @@ namespace seat {
         wlr_scene_tree* scene_tree;
         /*wlr_scene_tree* drag_icons;*/
 
+        // List of nodes in focus stack
+        std::list<SeatNode*> focus_stack;
+        std::list<SeatNode*> exclusivity_stack;
+
+        // Currently focused node
+        SeatNode* focused_node;
+
+        wrapper::Listener<Seat> new_node;
         wrapper::Listener<Seat> request_cursor;
         wrapper::Listener<Seat> request_set_selection;
+
         wrapper::Listener<Seat> destroy;
 
         Seat(const char* seat_name);
@@ -147,6 +171,13 @@ namespace seat {
         void add_device(input::InputDevice* device);
         // Removes the device from the seat
         void remove_device(input::InputDevice* device);
+        // Gets or creates a new seat node from the root node
+        SeatNode* get_seat_node(nodes::Node* node);
+
+        SeatNode* get_next_focus();
+        void focus_node(nodes::Node* node);
+        void focus_surface(wlr_surface* surface);
+        void focus_layer(wlr_layer_surface_v1* layer);
 
         private:
         // List of devices attached to this seat
@@ -174,12 +205,16 @@ namespace seat {
         void update_capabilities();
     };
 
+    // Called by the root when a new node is added to the tree
+    void new_node(wl_listener* listener, void* data);
     // Called by the seat when a client wants to set the cursor image
     void request_cursor(wl_listener* listener, void* data);
     // Called by the seat when a client wants to set the selection
     void request_set_selection(wl_listener* listener, void* data);
     // Called when a seat is destroyed
     void destroy(wl_listener* listener, void* data);
+    // Called when a seat node is destroyed
+    void seat_node_destroy(wl_listener* listener, void* data);
 }
 
 namespace input {

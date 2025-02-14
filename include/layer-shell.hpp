@@ -9,6 +9,7 @@ namespace layer_shell {
     struct LayerSurface {
         wlr_layer_surface_v1* layer_surface;
         wlr_scene_layer_surface_v1* scene;
+        nodes::Node node;
 
         wlr_scene_tree* popup_tree;
         wlr_scene_tree* tree;
@@ -27,7 +28,6 @@ namespace layer_shell {
 
         LayerSurface(wlr_scene_layer_surface_v1* layer_surface, output::Output* output);
 
-        bool should_focus();
         void handle_focus();
     };
 

@@ -5,7 +5,7 @@
 #include "wlr.hpp"
 
 namespace output {
-    struct Output : nodes::Node {
+    struct Output {
         wlr_output* output;
         struct wlr_output_state pending;
 

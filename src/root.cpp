@@ -2,9 +2,28 @@
 
 #include "server.hpp"
 
+nodes::Node::Node(xdg_shell::Toplevel* toplevel)
+    : type(NodeType::TOPLEVEL) {
+    val.toplevel = toplevel;
+    wl_signal_init(&events.node_destroy);
+}
+
+nodes::Node::Node(layer_shell::LayerSurface* layer_surface)
+    : type(NodeType::LAYER_SURFACE) {
+    val.layer_surface = layer_surface;
+    wl_signal_init(&events.node_destroy);
+}
+
+bool nodes::Node::has_exclusivity() {
+    return type == nodes::NodeType::LAYER_SURFACE &&
+           val.layer_surface->layer_surface->current.keyboard_interactive ==
+               ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE &&
+           (val.layer_surface->layer_surface->current.layer == ZWLR_LAYER_SHELL_V1_LAYER_TOP ||
+            val.layer_surface->layer_surface->current.layer == ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY);
+}
+
 nodes::Root::Root(wl_display* display)
-    : Node(NodeType::ROOT),
-      scene(wlr_scene_create()),
+    : scene(wlr_scene_create()),
 
       shell_background(wlr_scene_tree_create(&scene->tree)),
       shell_bottom(wlr_scene_tree_create(&scene->tree)),
@@ -16,7 +35,7 @@ nodes::Root::Root(wl_display* display)
       seat(wlr_scene_tree_create(&scene->tree)),
 
       output_layout(wlr_output_layout_create(display)) {
-    wl_signal_init(&new_node);
+    wl_signal_init(&events.new_node);
 }
 
 void nodes::Root::arrange() {

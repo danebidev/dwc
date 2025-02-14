@@ -5,6 +5,7 @@
 layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
     : layer_surface(scene->layer_surface),
       scene(scene),
+      node(this),
       popup_tree(wlr_scene_tree_create(server.root.layer_popups)),
       tree(scene->tree),
       output(output),
@@ -17,26 +18,19 @@ layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, outpu
       new_popup(this, layer_shell::new_popup, &layer_surface->events.new_popup) {
     layer_surface->data = this;
     tree->node.data = this;
-    output->arrange_layers();
-}
-
-bool layer_shell::LayerSurface::should_focus() {
-    if(!layer_surface || !layer_surface->surface || !layer_surface->surface->mapped)
-        return false;
-
-    return layer_surface->current.keyboard_interactive !=
-           ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
+    // The layer arrange on map and unmap should be enough
+    // output->arrange_layers();
 }
 
 void layer_shell::LayerSurface::handle_focus() {
-    if(!should_focus())
+    if(!layer_surface || !layer_surface->surface || !layer_surface->surface->mapped)
         return;
 
-    wlr_keyboard *keyboard = wlr_seat_get_keyboard(server.input_manager.seat.seat);
+    if(layer_surface->current.keyboard_interactive ==
+       ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
+        return;
 
-    if(keyboard)
-        wlr_seat_keyboard_enter(server.input_manager.seat.seat, layer_surface->surface,
-                                keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
+    server.input_manager.seat.focus_node(&node);
 }
 
 void layer_shell::new_surface(wl_listener *listener, void *data) {
@@ -73,26 +67,25 @@ wlr_scene_tree *layer_shell::get_scene(output::Output *output, zwlr_layer_shell_
             return output->layers.shell_top;
         case ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY:
             return output->layers.shell_overlay;
+        default:
+            wlr_log(WLR_ERROR, "invalid type? shouldn't happen");
+            exit(EXIT_FAILURE);
     }
 }
 
 void layer_shell::map(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
-    wlr_layer_surface_v1 *layer_surface = surface->layer_surface;
     wlr_scene_node_set_enabled(&surface->scene->tree->node, true);
 
-    if(layer_surface->current.keyboard_interactive &&
-       (layer_surface->current.layer == ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY ||
-        layer_surface->current.layer == ZWLR_LAYER_SHELL_V1_LAYER_TOP)) {
-        surface->handle_focus();
-    }
-
+    wl_signal_emit(&server.root.events.new_node, static_cast<void *>(&surface->node));
     surface->output->arrange_layers();
 }
 
 void layer_shell::unmap(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
     wlr_scene_node_set_enabled(&surface->scene->tree->node, false);
+
+    wl_signal_emit(&surface->node.events.node_destroy, static_cast<void *>(&surface->node));
 }
 
 void layer_shell::surface_commit(wl_listener *listener, void *data) {
