@@ -4,7 +4,6 @@
 
 nodes::Root::Root(wl_display* display)
     : Node(NodeType::ROOT),
-
       scene(wlr_scene_create()),
 
       shell_background(wlr_scene_tree_create(&scene->tree)),

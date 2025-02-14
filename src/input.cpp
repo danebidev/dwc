@@ -513,7 +513,8 @@ input::InputDevice::InputDevice(wlr_input_device *device)
 
 input::InputManager::InputManager(wl_display *display, wlr_backend *backend)
     : seat(DEFAULT_SEAT),
-      new_input(this, input::new_input, &backend->events.new_input) {}
+      new_input(this, input::new_input, &backend->events.new_input),
+      backend_destroy(this, input::backend_destroy, &backend->events.destroy) {}
 
 void input::new_input(wl_listener *listener, void *data) {
     InputManager *input_manager =
@@ -557,4 +558,10 @@ std::string input::device_identifier(wlr_input_device *device) {
     }
 
     return std::format("{}:{}:{}", vendor, product, name);
+}
+
+void input::backend_destroy(wl_listener *listener, void *data) {
+    InputManager *input = static_cast<wrapper::Listener<InputManager> *>(listener)->container;
+    input->new_input.free();
+    input->backend_destroy.free();
 }

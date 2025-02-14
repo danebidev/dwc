@@ -183,6 +183,8 @@ namespace seat {
 }
 
 namespace input {
+    void backend_destroy(wl_listener* listener, void* data);
+
     // A wrapper around a generic input device to allow for automatic
     // destruction and better manage interaction with the seat
     class InputDevice {
@@ -199,6 +201,8 @@ namespace input {
     };
 
     class InputManager {
+        friend void input::backend_destroy(wl_listener*, void*);
+
         public:
         // Multi-seat support is pain, so it's currently single-seat
         seat::Seat seat;
@@ -209,6 +213,7 @@ namespace input {
 
         private:
         wrapper::Listener<InputManager> new_input;
+        wrapper::Listener<InputManager> backend_destroy;
     };
 
     // Called when a new input is made available by the backend

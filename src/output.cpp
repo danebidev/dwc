@@ -3,10 +3,12 @@
 #include <algorithm>
 
 #include "layer-shell.hpp"
+#include "root.hpp"
 #include "server.hpp"
 
 output::Output::Output(wlr_output *output)
-    : output(output),
+    : Node(nodes::NodeType::OUTPUT),
+      output(output),
       // Adds output to scene graph
       scene_output(wlr_scene_output_create(server.root.scene, output)),
 

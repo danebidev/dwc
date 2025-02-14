@@ -28,13 +28,14 @@ Server::Server()
       // the correct capabilities and position based on the backend and renderer
       allocator(wlr_allocator_autocreate(backend, renderer)),
 
+      // Root of the scene graph tree
       root(display),
 
       // Attaches an output layout to a scene, to synchronize the positions of scene
       // outputs with the positions of corresponding layout outputs
       scene_layout(wlr_scene_attach_output_layout(root.scene, root.output_layout)),
 
-      // protocols
+      // Protocols
       xdg_shell(wlr_xdg_shell_create(display, 6)),
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
 
@@ -42,10 +43,13 @@ Server::Server()
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),
-
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
+      new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
 
-      new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface) {
+      // Cleanup listeners
+      backend_destroy(this, ::backend_destroy, &backend->events.destroy),
+      xdg_shell_destroy(this, ::xdg_shell_destroy, &xdg_shell->events.destroy),
+      layer_shell_destroy(this, ::layer_shell_destroy, &layer_shell->events.destroy) {
     if(!backend)
         throw std::runtime_error("failed to create wlr_backend");
 
@@ -77,13 +81,6 @@ Server::Server()
 
 Server::~Server() {
     wl_display_destroy_clients(display);
-
-    // We have to destroy listeners before we can destroy the other
-    // objects, so this is necessary. Ideally there'd be a cleaner way
-    new_output.free();
-
-    new_xdg_toplevel.free();
-    new_layer_shell_surface.free();
 
     wlr_scene_node_destroy(&root.scene->tree.node);
 
@@ -156,4 +153,19 @@ layer_shell::LayerSurface* Server::layer_surface_at(double lx, double ly, wlr_su
         return layer_surface;
     else
         return nullptr;
+}
+
+void backend_destroy(wl_listener* listener, void* data) {
+    server.new_output.free();
+    server.backend_destroy.free();
+}
+
+void xdg_shell_destroy(wl_listener* listener, void* data) {
+    server.new_xdg_toplevel.free();
+    server.xdg_shell_destroy.free();
+}
+
+void layer_shell_destroy(wl_listener* listener, void* data) {
+    server.new_layer_shell_surface.free();
+    server.layer_shell_destroy.free();
 }
