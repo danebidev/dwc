@@ -8,7 +8,7 @@
 output::Output::Output(wlr_output *output)
     : output(output),
       // Adds output to scene graph
-      scene_output(wlr_scene_output_create(server.scene, output)),
+      scene_output(wlr_scene_output_create(server.root.scene, output)),
 
       frame(this, output::frame, &output->events.frame),
       request_state(this, output::request_state, &output->events.request_state),
@@ -36,7 +36,7 @@ output::Output::Output(wlr_output *output)
     // auto_add arranges outputs from left-to-right in the order they appear
     // TODO: config
     wlr_output_layout_output *layout_output =
-        wlr_output_layout_add_auto(server.output_layout, output);
+        wlr_output_layout_add_auto(server.root.output_layout, output);
 
     layers.shell_background = wlr_scene_tree_create(server.root.shell_background);
     layers.shell_bottom = wlr_scene_tree_create(server.root.shell_bottom);
@@ -82,7 +82,7 @@ void output::Output::arrange_layers() {
 
 void output::Output::update_position() {
     struct wlr_box output_box;
-    wlr_output_layout_get_box(server.output_layout, output, &output_box);
+    wlr_output_layout_get_box(server.root.output_layout, output, &output_box);
     lx = output_box.x;
     ly = output_box.y;
     width = output_box.width;
@@ -97,7 +97,7 @@ void output::new_output(wl_listener *listener, void *data) {
 
 void output::frame(wl_listener *listener, void *data) {
     Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-    wlr_scene *scene = server.scene;
+    wlr_scene *scene = server.root.scene;
     wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->output);
 
     wlr_scene_output_commit(scene_output, nullptr);

@@ -17,10 +17,7 @@ class Server {
     wlr_renderer* renderer;
     wlr_allocator* allocator;
 
-    // Layout/output
-    wlr_output_layout* output_layout;
-
-    wlr_scene* scene;
+    // Scene graph root
     nodes::Root root;
 
     wlr_scene_output_layout* scene_layout;

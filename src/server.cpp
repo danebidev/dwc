@@ -28,17 +28,11 @@ Server::Server()
       // the correct capabilities and position based on the backend and renderer
       allocator(wlr_allocator_autocreate(backend, renderer)),
 
-      // Output layout, to configure how
-      // outputs are physically arranged
-      output_layout(wlr_output_layout_create(display)),
-
-      // Creates the scene graph, that handles all rendering and damage tracking
-      scene(wlr_scene_create()),
-      root(&scene->tree),
+      root(display),
 
       // Attaches an output layout to a scene, to synchronize the positions of scene
       // outputs with the positions of corresponding layout outputs
-      scene_layout(wlr_scene_attach_output_layout(scene, output_layout)),
+      scene_layout(wlr_scene_attach_output_layout(root.scene, root.output_layout)),
 
       // protocols
       xdg_shell(wlr_xdg_shell_create(display, 6)),
@@ -78,7 +72,7 @@ Server::Server()
     // (copy-and-paste, drag-and-drop, etc.)
     wlr_data_device_manager_create(display);
 
-    wlr_xdg_output_manager_v1_create(display, output_layout);
+    wlr_xdg_output_manager_v1_create(display, root.output_layout);
 }
 
 Server::~Server() {
@@ -91,7 +85,7 @@ Server::~Server() {
     new_xdg_toplevel.free();
     new_layer_shell_surface.free();
 
-    wlr_scene_node_destroy(&scene->tree.node);
+    wlr_scene_node_destroy(&root.scene->tree.node);
 
     wlr_allocator_destroy(allocator);
     wlr_renderer_destroy(renderer);
@@ -121,7 +115,7 @@ void Server::start(char* startup_cmd) {
 
 template <typename T>
 T* Server::surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy) {
-    wlr_scene_node* node = wlr_scene_node_at(&scene->tree.node, lx, ly, &sx, &sy);
+    wlr_scene_node* node = wlr_scene_node_at(&root.scene->tree.node, lx, ly, &sx, &sy);
     if(!node || node->type != WLR_SCENE_NODE_BUFFER)
         return nullptr;
 

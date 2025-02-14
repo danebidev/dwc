@@ -12,11 +12,8 @@
 #define DEFAULT_SEAT "seat0"
 
 cursor::Cursor::Cursor()
-    :  // cursor is a wlroots utility for tracking the cursor image
-      cursor(wlr_cursor_create()),
-      // Creates a xcursor manager, that loads Xcursor cursors
-      // and manages scaling them
-      cursor_mgr(wlr_xcursor_manager_create(nullptr, 24)),
+    : cursor(wlr_cursor_create()),
+      xcursor_mgr(wlr_xcursor_manager_create(nullptr, 24)),
       cursor_mode(CursorMode::PASSTHROUGH),
 
       motion(this, cursor::cursor_motion, &cursor->events.motion),
@@ -24,7 +21,7 @@ cursor::Cursor::Cursor()
       button(this, cursor::cursor_button, &cursor->events.button),
       axis(this, cursor::cursor_axis, &cursor->events.axis),
       frame(this, cursor::cursor_frame, &cursor->events.frame) {
-    wlr_cursor_attach_output_layout(cursor, server.output_layout);
+    wlr_cursor_attach_output_layout(cursor, server.root.output_layout);
 }
 
 cursor::Cursor::~Cursor() {
@@ -34,7 +31,7 @@ cursor::Cursor::~Cursor() {
     axis.free();
     frame.free();
 
-    wlr_xcursor_manager_destroy(cursor_mgr);
+    wlr_xcursor_manager_destroy(xcursor_mgr);
     wlr_cursor_destroy(cursor);
 }
 
@@ -51,13 +48,16 @@ void cursor::Cursor::set_image(const char *new_image, wl_client *client) {
     image = new_image;
     image_client = client;
 
+    // Unset image if the new image is null
     if(!new_image)
         wlr_cursor_unset_image(cursor);
-    else if(!current_image || strcmp(current_image, new_image) != 0)
-        wlr_cursor_set_xcursor(cursor, cursor_mgr, new_image);
+    // Change image if there was no image before, or the image is different
+    else if(!current_image || strcmp(current_image, new_image))
+        wlr_cursor_set_xcursor(cursor, xcursor_mgr, new_image);
 }
 
 void cursor::Cursor::process_motion(uint32_t time) {
+    // If the cursor mode is not passthrough, consume the motion
     if(cursor_mode == cursor::CursorMode::MOVE) {
         process_cursor_move();
         return;
@@ -67,45 +67,55 @@ void cursor::Cursor::process_motion(uint32_t time) {
         return;
     }
 
+    // Surface-local coordinates
     double sx, sy;
     wlr_surface *surface = nullptr;
 
+    // Check if the cursor entered a toplevel surface
     xdg_shell::Toplevel *toplevel = server.toplevel_at(cursor->x, cursor->y, surface, sx, sy);
-    if(toplevel && surface && surface->mapped) {
+    if(toplevel) {
+        // TODO: set cursor image
         wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
         wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
         return;
     }
 
+    // Check if the cursor entered a layer_shell surface
     layer_shell::LayerSurface *layer_surface =
         server.layer_surface_at(cursor->x, cursor->y, surface, sx, sy);
-    if(layer_surface && surface && surface->mapped) {
+    if(layer_surface) {
+        // TODO: set cursor image
         wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
         wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
         return;
     }
 
-    wlr_cursor_set_xcursor(cursor, cursor_mgr, "default");
+    // Otherwise, set the default image and clear the focus
+    set_image("default", nullptr);
     wlr_seat_pointer_clear_focus(server.input_manager.seat.seat);
 }
 
 void cursor::Cursor::begin_interactive(xdg_shell::Toplevel *toplevel, cursor::CursorMode mode,
                                        uint32_t edges) {
+    // This should never be called with passthrough mode
     assert(mode != cursor::CursorMode::PASSTHROUGH);
 
     grabbed_toplevel = toplevel;
     cursor_mode = mode;
 
     if(mode == cursor::CursorMode::MOVE) {
+        // Sets grab coordinates to toplevel-relative coordinates
         grab_x = cursor->x - toplevel->scene_tree->node.x;
         grab_y = cursor->y - toplevel->scene_tree->node.y;
     }
     else {
+        // Black magic i don't understand
         wlr_box *geo_box = &toplevel->toplevel->base->geometry;
         double border_x = (toplevel->scene_tree->node.x + geo_box->x) +
                           ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
         double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
                           ((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
+
         grab_x = cursor->x - border_x;
         grab_y = cursor->y - border_y;
 
@@ -118,13 +128,16 @@ void cursor::Cursor::begin_interactive(xdg_shell::Toplevel *toplevel, cursor::Cu
 }
 
 void cursor::Cursor::process_cursor_move() {
-    xdg_shell::Toplevel *toplevel = grabbed_toplevel;
-    wlr_scene_node_set_position(&toplevel->scene_tree->node, cursor->x - grab_x,
+    assert(grabbed_toplevel);
+    // Moves the toplevel to the new cursor
+    // position, shifting by the grab location
+    wlr_scene_node_set_position(&grabbed_toplevel->scene_tree->node, cursor->x - grab_x,
                                 cursor->y - grab_y);
 }
 
 void cursor::Cursor::process_cursor_resize() {
     xdg_shell::Toplevel *toplevel = grabbed_toplevel;
+    // Gets the displacement from the grab location
     double border_x = cursor->x - grab_x;
     double border_y = cursor->y - grab_y;
     int new_left = grab_geobox.x;
@@ -231,8 +244,6 @@ void cursor::cursor_frame(wl_listener *listener, void *data) {
 keyboard::Keyboard::Keyboard(seat::SeatDevice *device)
     : keyboard(wlr_keyboard_from_input_device(device->device->device)),
       seat_dev(device),
-      repeat_rate(0),
-      repeat_delay(0),
 
       modifiers(this, keyboard::modifiers, &keyboard->events.modifiers),
       key(this, keyboard::key, &keyboard->events.key),
@@ -327,13 +338,12 @@ seat::SeatDevice::~SeatDevice() {
 
 seat::Seat::Seat(const char *seat_name)
     : seat(wlr_seat_create(server.display, seat_name)),
-
       scene_tree(wlr_scene_tree_create(server.root.seat)),
       /*drag_icons(wlr_scene_tree_create(scene_tree)),*/
 
       request_cursor(this, seat::request_cursor, &seat->events.request_set_cursor),
-      request_set_selection(this, seat::request_set_selection,
-                            &seat->events.request_set_selection) {
+      request_set_selection(this, seat::request_set_selection, &seat->events.request_set_selection),
+      destroy(this, seat::destroy, &seat->events.destroy) {
     seat->data = this;
 }
 
@@ -357,6 +367,7 @@ void seat::Seat::remove_device(input::InputDevice *device) {
 
     wlr_log(WLR_DEBUG, "removing device %s from seat %s", device->identifier.c_str(), seat->name);
 
+    devices.remove(seat_dev);
     delete seat_dev;
     update_capabilities();
 }
@@ -461,11 +472,6 @@ void seat::Seat::update_capabilities() {
     }
 }
 
-void seat::Seat::free_listeners() {
-    request_cursor.free();
-    request_set_selection.free();
-}
-
 void seat::request_cursor(wl_listener *listener, void *data) {
     Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
     wlr_seat_pointer_request_set_cursor_event *event =
@@ -474,7 +480,8 @@ void seat::request_cursor(wl_listener *listener, void *data) {
     if(seat->cursor.cursor_mode != cursor::CursorMode::PASSTHROUGH)
         return;
 
-    // Check that it's actually being sent by the focused client
+    // This event can be sent by any client so we check
+    // that it's actually being sent by the focused client
     wlr_seat_client *focused_client = seat->seat->pointer_state.focused_client;
     if(focused_client == event->seat_client)
         wlr_cursor_set_surface(seat->cursor.cursor, event->surface, event->hotspot_x,
@@ -487,6 +494,14 @@ void seat::request_set_selection(wl_listener *listener, void *data) {
         static_cast<wlr_seat_request_set_selection_event *>(data);
 
     wlr_seat_set_selection(seat->seat, event->source, event->serial);
+}
+
+void seat::destroy(wl_listener *listener, void *data) {
+    Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
+
+    seat->request_cursor.free();
+    seat->request_set_selection.free();
+    seat->destroy.free();
 }
 
 input::InputDevice::InputDevice(wlr_input_device *device)
@@ -531,10 +546,12 @@ std::string input::device_identifier(wlr_input_device *device) {
         product = libinput_device_get_id_product(libinput_dev);
     }
 
+    // Apparently the device name can be null (how??)
     std::string name = device->name ? device->name : "";
     trim(name);
 
     for(auto &c : name) {
+        // Device names can contain not-printable characters
         if(c == ' ' || !isprint(c))
             c = '_';
     }

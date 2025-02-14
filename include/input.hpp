@@ -19,14 +19,20 @@ namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };
 
     struct Cursor {
+        // wlr utility to manage the cursor image
+        // Can attach multiple input devices to it
         wlr_cursor* cursor;
-        wlr_xcursor_manager* cursor_mgr;
+        // Manager for the cursor image theme
+        wlr_xcursor_manager* xcursor_mgr;
         cursor::CursorMode cursor_mode;
 
+        // The current cursor image
         const char* image;
+
+        // The current client that is providing the image
         struct wl_client* image_client;
 
-        // Grab stuff
+        // Currently grabbed toplevel, or null if none
         xdg_shell::Toplevel* grabbed_toplevel;
         double grab_x, grab_y;
         wlr_box grab_geobox;
@@ -41,7 +47,9 @@ namespace cursor {
         Cursor();
         ~Cursor();
 
+        // Resets cursor mode to passthrough
         void reset_cursor_mode();
+        // Sets the cursor image, null image unsets the image
         void set_image(const char* image, wl_client* client);
 
         // Should be called whenever the cursor moves for any reason
@@ -50,10 +58,13 @@ namespace cursor {
         // "interactive mode" is the mode the compositor is in when pointer
         // events don't get propagated to the client, but are consumed
         // and used for some operation, like move and resize of windows
+        // edges is ignored if the operation is move
         void begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode mode,
                                uint32_t edges);
 
+        // Handles toplevel movement
         void process_cursor_move();
+        // Handles toplevel resize
         void process_cursor_resize();
     };
 
@@ -82,6 +93,7 @@ namespace keyboard {
         wlr_keyboard* keyboard;
         seat::SeatDevice* seat_dev;
 
+        // TODO: set these from config
         int repeat_rate;
         int repeat_delay;
 
@@ -91,8 +103,8 @@ namespace keyboard {
 
         Keyboard(seat::SeatDevice* kb);
 
+        // Configure keyboard repeat rate, keymap, and set the keyboard in the seat
         void configure();
-        void set_layout();
     };
 
     bool handle_keybinding(xkb_keysym_t sym);
@@ -122,6 +134,13 @@ namespace seat {
         wlr_seat* seat;
         cursor::Cursor cursor;
 
+        wlr_scene_tree* scene_tree;
+        /*wlr_scene_tree* drag_icons;*/
+
+        wrapper::Listener<Seat> request_cursor;
+        wrapper::Listener<Seat> request_set_selection;
+        wrapper::Listener<Seat> destroy;
+
         Seat(const char* seat_name);
 
         // Adds the device to the seat
@@ -134,12 +153,6 @@ namespace seat {
         // Since we currently only have a single seat, this
         // this match the input manager device list
         std::list<SeatDevice*> devices;
-
-        wlr_scene_tree* scene_tree;
-        /*wlr_scene_tree* drag_icons;*/
-
-        wrapper::Listener<Seat> request_cursor;
-        wrapper::Listener<Seat> request_set_selection;
 
         // Returns a seat device from the InputDevice, or nullptr if it can't be found
         SeatDevice* get_device(input::InputDevice* device);
@@ -159,14 +172,14 @@ namespace seat {
         // Updates capabilities based on current seat devices
         // Should be called whenever seat devices change
         void update_capabilities();
-
-        void free_listeners();
     };
 
     // Called by the seat when a client wants to set the cursor image
     void request_cursor(wl_listener* listener, void* data);
     // Called by the seat when a client wants to set the selection
     void request_set_selection(wl_listener* listener, void* data);
+    // Called when a seat is destroyed
+    void destroy(wl_listener* listener, void* data);
 }
 
 namespace input {

@@ -1,10 +1,32 @@
 #pragma once
 
-#include <variant>
+#include <list>
 
 #include "wlr.hpp"
 
+namespace output {
+    struct Output;
+}
+
 namespace nodes {
+    enum class NodeType { ROOT, OUTPUT, TOPLEVEL };
+
+    class Node {
+        public:
+        Node(NodeType type)
+            : type(type) {
+            static int next_id = 1;
+            id = next_id++;
+            wl_signal_init(&destroy);
+        }
+
+        private:
+        NodeType type;
+        size_t id;
+
+        wl_signal destroy;
+    };
+
     // scene layout (from top to bottom):
     // - root
     //   - seat stuff
@@ -20,7 +42,9 @@ namespace nodes {
     //     - [output trees]
     //   - shell_background
     //     - [output trees]
-    struct Root {
+    struct Root : Node {
+        wlr_scene* scene;
+
         wlr_scene_tree* shell_background;
         wlr_scene_tree* shell_bottom;
         wlr_scene_tree* floating;
@@ -30,12 +54,13 @@ namespace nodes {
         wlr_scene_tree* layer_popups;
         wlr_scene_tree* seat;
 
-        Root(wlr_scene_tree* parent);
+        wlr_output_layout* output_layout;
+        std::list<output::Output*> outputs;
+
+        Root(wl_display* display);
 
         void arrange();
 
-        struct {
-            wl_signal new_node;
-        } events;
+        wl_signal new_node;
     };
 }
