@@ -2,14 +2,21 @@
 
 #include "server.hpp"
 
-nodes::Root::Root(wlr_scene_tree* parent)
-    : shell_background(wlr_scene_tree_create(parent)),
-      shell_bottom(wlr_scene_tree_create(parent)),
-      floating(wlr_scene_tree_create(parent)),
-      shell_top(wlr_scene_tree_create(parent)),
-      shell_overlay(wlr_scene_tree_create(parent)),
-      layer_popups(wlr_scene_tree_create(parent)),
-      seat(wlr_scene_tree_create(parent)) {}
+nodes::Root::Root(wl_display* display)
+    : scene(wlr_scene_create()),
+
+      shell_background(wlr_scene_tree_create(&scene->tree)),
+      shell_bottom(wlr_scene_tree_create(&scene->tree)),
+      floating(wlr_scene_tree_create(&scene->tree)),
+      toplevel_popups(wlr_scene_tree_create(&scene->tree)),
+      shell_top(wlr_scene_tree_create(&scene->tree)),
+      shell_overlay(wlr_scene_tree_create(&scene->tree)),
+      layer_popups(wlr_scene_tree_create(&scene->tree)),
+      seat(wlr_scene_tree_create(&scene->tree)),
+
+      output_layout(wlr_output_layout_create(display)) {
+    wl_signal_init(&new_node);
+}
 
 void nodes::Root::arrange() {
     wlr_scene_node_set_enabled(&shell_background->node, true);
