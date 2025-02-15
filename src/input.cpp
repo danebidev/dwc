@@ -1,5 +1,7 @@
 #include "input.hpp"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -281,6 +283,10 @@ bool keyboard::handle_keybinding(xkb_keysym_t sym) {
     switch(sym) {
         case XKB_KEY_Escape:
             wl_display_terminate(server.display);
+            break;
+        case XKB_KEY_t:
+            if(fork() == 0)
+                execl("/bin/sh", "/bin/sh", "-c", "foot", (void *)nullptr);
             break;
         default:
             return false;
