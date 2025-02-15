@@ -10,7 +10,8 @@ namespace wrapper {
         public:
         using Callback = void(wl_listener*, void*);
 
-        Listener(Container* cont, Callback cb, wl_signal* signal) : freed(false) {
+        Listener(Container* cont, Callback cb, wl_signal* signal)
+            : freed(false) {
             container = cont;
             notify = cb;
             wl_signal_add(signal, this);
@@ -18,8 +19,7 @@ namespace wrapper {
 
         ~Listener() { free(); }
 
-        // Cursed stuff, needed because listeners sometimes have to be deleted manually
-        // See server.cpp
+        // Needed because listeners sometimes have to be deleted manually
         void free() {
             if(!freed) {
                 wl_list_remove(&link);

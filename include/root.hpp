@@ -5,15 +5,15 @@
 #include "wlr.hpp"
 
 namespace output {
-    struct Output;
+    class Output;
 }
 
 namespace layer_shell {
-    struct LayerSurface;
+    class LayerSurface;
 }
 
 namespace xdg_shell {
-    struct Toplevel;
+    class Toplevel;
 }
 
 namespace nodes {

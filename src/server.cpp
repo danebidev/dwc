@@ -10,6 +10,21 @@
 
 Server server;
 
+void backend_destroy(wl_listener* listener, void* data) {
+    server.new_output.free();
+    server.backend_destroy.free();
+}
+
+void xdg_shell_destroy(wl_listener* listener, void* data) {
+    server.new_xdg_toplevel.free();
+    server.xdg_shell_destroy.free();
+}
+
+void layer_shell_destroy(wl_listener* listener, void* data) {
+    server.new_layer_shell_surface.free();
+    server.layer_shell_destroy.free();
+}
+
 Server::Server()
     :  // wl_display global.
        // Needed for the registry and the creation of more objects
@@ -166,19 +181,4 @@ layer_shell::LayerSurface* Server::layer_surface_at(double lx, double ly, wlr_su
         return layer_surface;
     else
         return nullptr;
-}
-
-void backend_destroy(wl_listener* listener, void* data) {
-    server.new_output.free();
-    server.backend_destroy.free();
-}
-
-void xdg_shell_destroy(wl_listener* listener, void* data) {
-    server.new_xdg_toplevel.free();
-    server.xdg_shell_destroy.free();
-}
-
-void layer_shell_destroy(wl_listener* listener, void* data) {
-    server.new_layer_shell_surface.free();
-    server.layer_shell_destroy.free();
 }

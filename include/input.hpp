@@ -20,13 +20,42 @@ namespace seat {
 namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };
 
-    struct Cursor {
+    class Cursor {
+        friend void new_pointer(wlr_input_device*);
+        friend void cursor_motion(wl_listener*, void*);
+        friend void cursor_motion_absolute(wl_listener*, void*);
+        friend void cursor_button(wl_listener*, void*);
+        friend void cursor_axis(wl_listener*, void*);
+        friend void cursor_frame(wl_listener* listener, void* data);
+
+        public:
         // wlr utility to manage the cursor image
         // Can attach multiple input devices to it
         wlr_cursor* cursor;
+
+        cursor::CursorMode cursor_mode;
+
+        xdg_shell::Toplevel* grabbed_toplevel;
+
+        Cursor();
+        ~Cursor();
+
+        // Resets cursor mode to passthrough
+        void reset_cursor_mode();
+
+        // "interactive mode" is the mode the compositor is in when pointer
+        // events don't get propagated to the client, but are consumed
+        // and used for some operation, like move and resize of windows
+        // edges is ignored if the operation is move
+        void begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode mode,
+                               uint32_t edges);
+
+        // Sets the cursor image, null image unsets the image
+        void set_image(const char* image, wl_client* client);
+
+        private:
         // Manager for the cursor image theme
         wlr_xcursor_manager* xcursor_mgr;
-        cursor::CursorMode cursor_mode;
 
         // The current cursor image
         const char* image;
@@ -35,7 +64,6 @@ namespace cursor {
         struct wl_client* image_client;
 
         // Currently grabbed toplevel, or null if none
-        xdg_shell::Toplevel* grabbed_toplevel;
         double grab_x, grab_y;
         wlr_box grab_geobox;
         uint32_t resize_edges;
@@ -46,53 +74,31 @@ namespace cursor {
         wrapper::Listener<Cursor> axis;
         wrapper::Listener<Cursor> frame;
 
-        Cursor();
-        ~Cursor();
-
-        // Resets cursor mode to passthrough
-        void reset_cursor_mode();
-        // Sets the cursor image, null image unsets the image
-        void set_image(const char* image, wl_client* client);
-
         // Should be called whenever the cursor moves for any reason
         void process_motion(uint32_t time);
-
-        // "interactive mode" is the mode the compositor is in when pointer
-        // events don't get propagated to the client, but are consumed
-        // and used for some operation, like move and resize of windows
-        // edges is ignored if the operation is move
-        void begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode mode,
-                               uint32_t edges);
 
         // Handles toplevel movement
         void process_cursor_move();
         // Handles toplevel resize
         void process_cursor_resize();
     };
-
-    void new_pointer(wlr_input_device* device);
-
-    // Called when a pointer emits a relative pointer motion event
-    void cursor_motion(wl_listener* listener, void* data);
-
-    // Called when a pointer emits an absolute pointer motion event
-    void cursor_motion_absolute(wl_listener* listener, void* data);
-
-    // Called when a pointer emits a button event
-    void cursor_button(wl_listener* listener, void* data);
-
-    // Called when a pointer emits an axis event, like a mouse wheel scroll
-    void cursor_axis(wl_listener* listener, void* data);
-
-    // Called when a pointer emits a frame event
-    // Frame events are sent after regular pointer events
-    // to group multiple events together
-    void cursor_frame(wl_listener* listener, void* data);
 }
 
 namespace keyboard {
-    struct Keyboard {
+    class Keyboard {
+        friend void modifiers(wl_listener*, void*);
+        friend void key(wl_listener*, void*);
+        friend void destroy(wl_listener*, void*);
+
+        public:
         wlr_keyboard* keyboard;
+
+        Keyboard(seat::SeatDevice* kb);
+
+        // Configure keyboard repeat rate, keymap, and set the keyboard in the seat
+        void configure();
+
+        private:
         seat::SeatDevice* seat_dev;
 
         // TODO: set these from config
@@ -102,27 +108,13 @@ namespace keyboard {
         wrapper::Listener<Keyboard> modifiers;
         wrapper::Listener<Keyboard> key;
         wrapper::Listener<Keyboard> destroy;
-
-        Keyboard(seat::SeatDevice* kb);
-
-        // Configure keyboard repeat rate, keymap, and set the keyboard in the seat
-        void configure();
     };
-
-    bool handle_keybinding(xkb_keysym_t sym);
-
-    // Called when a modifier key (ctrl, shift, alt, etc.) is pressed
-    void modifiers(wl_listener* listener, void* data);
-
-    // Called when a key is pressed or released
-    void key(wl_listener* listener, void* data);
-
-    // Called when a keyboard is destroyed
-    void destroy(wl_listener* listener, void* data);
 }
 
 namespace seat {
     class SeatNode {
+        friend void seat_node_destroy(wl_listener*, void*);
+
         public:
         nodes::Node* node;
         // Keep track of the seat, so we can update the focus stack
@@ -145,6 +137,11 @@ namespace seat {
     };
 
     class Seat {
+        friend void new_node(wl_listener*, void*);
+        friend void request_cursor(wl_listener* listener, void* data);
+        friend void request_set_selection(wl_listener* listener, void* data);
+        friend void destroy(wl_listener* listener, void* data);
+
         public:
         wlr_seat* seat;
         cursor::Cursor cursor;
@@ -205,16 +202,6 @@ namespace seat {
         void update_capabilities();
     };
 
-    // Called by the root when a new node is added to the tree
-    void new_node(wl_listener* listener, void* data);
-    // Called by the seat when a client wants to set the cursor image
-    void request_cursor(wl_listener* listener, void* data);
-    // Called by the seat when a client wants to set the selection
-    void request_set_selection(wl_listener* listener, void* data);
-    // Called when a seat is destroyed
-    void destroy(wl_listener* listener, void* data);
-    // Called when a seat node is destroyed
-    void seat_node_destroy(wl_listener* listener, void* data);
 }
 
 namespace input {
@@ -250,12 +237,4 @@ namespace input {
         wrapper::Listener<InputManager> new_input;
         wrapper::Listener<InputManager> backend_destroy;
     };
-
-    // Called when a new input is made available by the backend
-    void new_input(wl_listener* listener, void* data);
-    // Called when a device of any kind is destroyed
-    void device_destroy(wl_listener* listener, void* data);
-
-    // Gets the device identifier of a device, sway style
-    std::string device_identifier(wlr_input_device* device);
 }

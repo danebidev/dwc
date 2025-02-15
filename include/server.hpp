@@ -21,8 +21,6 @@ class Server {
     wlr_renderer* renderer;
     wlr_allocator* allocator;
 
-    wlr_linux_dmabuf_v1* linux_dmabuf_v1;
-
     // Scene graph root
     nodes::Root root;
 
@@ -31,6 +29,7 @@ class Server {
     // Protocols
     wlr_xdg_shell* xdg_shell;
     wlr_layer_shell_v1* layer_shell;
+    wlr_linux_dmabuf_v1* linux_dmabuf_v1;
     wlr_screencopy_manager_v1* screencopy_manager_v1;
     wlr_ext_image_copy_capture_manager_v1* image_copy_capture_manager_v1;
 
