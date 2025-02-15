@@ -95,6 +95,7 @@ void output::Output::update_position() {
 void output::new_output(wl_listener *listener, void *data) {
     wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
     Output *output = new Output(wlr_output);
+    server.root.arrange();
     server.outputs.push_back(output);
 }
 
@@ -118,6 +119,7 @@ void output::request_state(wl_listener *listener, void *data) {
     wlr_output_commit_state(output->output, event->state);
     output->arrange_layers();
     output->update_position();
+    server.root.arrange();
 }
 
 void output::destroy(wl_listener *listener, void *data) {

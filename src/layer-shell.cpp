@@ -95,6 +95,8 @@ void layer_shell::unmap(wl_listener *listener, void *data) {
 void layer_shell::surface_commit(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
     bool rearrange = false;
+    // HACK
+    // TODO: actually figure out when to call this
     server.root.arrange();
 
     if(surface->layer_surface->current.committed & WLR_LAYER_SURFACE_V1_STATE_LAYER) {
