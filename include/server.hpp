@@ -13,6 +13,7 @@ class Server {
     friend void backend_destroy(wl_listener*, void*);
     friend void xdg_shell_destroy(wl_listener*, void*);
     friend void layer_shell_destroy(wl_listener*, void*);
+    friend void output::layout_update(wl_listener*, void*);
 
     public:
     // Globals
@@ -49,6 +50,7 @@ class Server {
     wlr_linux_dmabuf_v1* linux_dmabuf_v1;
     wlr_screencopy_manager_v1* screencopy_manager_v1;
     wlr_ext_image_copy_capture_manager_v1* ext_image_copy_capture_manager_v1;
+    wlr_output_manager_v1* output_manager_v1;
 
     template <typename T>
     T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy);
@@ -57,6 +59,8 @@ class Server {
     wrapper::Listener<Server> new_output;
     wrapper::Listener<Server> new_xdg_toplevel;
     wrapper::Listener<Server> new_layer_shell_surface;
+    wrapper::Listener<Server> output_test;
+    wrapper::Listener<Server> output_apply;
 
     // Cleanup listeners
     wrapper::Listener<Server> backend_destroy;

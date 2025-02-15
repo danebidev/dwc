@@ -46,16 +46,21 @@ void nodes::Root::arrange() {
     wlr_scene_node_set_enabled(&shell_overlay->node, true);
 
     for(auto& output : server.root.outputs) {
-        wlr_scene_output_set_position(output->scene_output, output->lx, output->ly);
+        wlr_scene_output_set_position(output->scene_output, output->output_box.x,
+                                      output->output_box.y);
 
         /*wlr_scene_node_reparent(&output->layers.shell_background->node, shell_background);*/
         /*wlr_scene_node_reparent(&output->layers.shell_bottom->node, shell_bottom);*/
         /*wlr_scene_node_reparent(&output->layers.shell_top->node, shell_top);*/
         /*wlr_scene_node_reparent(&output->layers.shell_overlay->node, shell_overlay);*/
 
-        wlr_scene_node_set_position(&output->layers.shell_background->node, output->lx, output->ly);
-        wlr_scene_node_set_position(&output->layers.shell_bottom->node, output->lx, output->ly);
-        wlr_scene_node_set_position(&output->layers.shell_top->node, output->lx, output->ly);
-        wlr_scene_node_set_position(&output->layers.shell_overlay->node, output->lx, output->ly);
+        wlr_scene_node_set_position(&output->layers.shell_background->node, output->output_box.x,
+                                    output->output_box.y);
+        wlr_scene_node_set_position(&output->layers.shell_bottom->node, output->output_box.x,
+                                    output->output_box.y);
+        wlr_scene_node_set_position(&output->layers.shell_top->node, output->output_box.x,
+                                    output->output_box.y);
+        wlr_scene_node_set_position(&output->layers.shell_overlay->node, output->output_box.x,
+                                    output->output_box.y);
     }
 }

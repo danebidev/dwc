@@ -25,6 +25,14 @@ void layer_shell_destroy(wl_listener* listener, void* data) {
     server.layer_shell_destroy.free();
 }
 
+void output_test(wl_listener* listener, void* data) {
+    output::apply_output_config(static_cast<wlr_output_configuration_v1*>(data), true);
+}
+
+void output_apply(wl_listener* listener, void* data) {
+    output::apply_output_config(static_cast<wlr_output_configuration_v1*>(data), false);
+}
+
 Server::Server()
     :  // wl_display global.
        // Needed for the registry and the creation of more objects
@@ -57,11 +65,14 @@ Server::Server()
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
       screencopy_manager_v1(wlr_screencopy_manager_v1_create(display)),
       ext_image_copy_capture_manager_v1(wlr_ext_image_copy_capture_manager_v1_create(display, 1)),
+      output_manager_v1(wlr_output_manager_v1_create(display)),
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
       new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
+      output_test(this, ::output_test, &output_manager_v1->events.test),
+      output_apply(this, ::output_apply, &output_manager_v1->events.apply),
 
       // Cleanup listeners
       backend_destroy(this, ::backend_destroy, &backend->events.destroy),
