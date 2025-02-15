@@ -21,6 +21,8 @@ class Server {
     wlr_renderer* renderer;
     wlr_allocator* allocator;
 
+    wlr_linux_dmabuf_v1* linux_dmabuf_v1;
+
     // Scene graph root
     nodes::Root root;
 

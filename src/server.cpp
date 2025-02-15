@@ -56,9 +56,16 @@ Server::Server()
     if(!renderer)
         throw std::runtime_error("failed to create wlr_renderer");
 
-    // Initializes wl_shm, dmabuf, etc.
-    if(!wlr_renderer_init_wl_display(renderer, display))
-        throw std::runtime_error("wlr_renderer_init_wl_display failed");
+    wlr_renderer_init_wl_shm(renderer, display);
+    if(wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)) {
+        linux_dmabuf_v1 = wlr_linux_dmabuf_v1_create_with_renderer(display, 4, renderer);
+        wlr_scene_set_linux_dmabuf_v1(root.scene, linux_dmabuf_v1);
+    }
+
+    if(wlr_renderer_get_drm_fd(renderer) >= 0 && renderer->features.timeline &&
+       backend->features.timeline) {
+        wlr_linux_drm_syncobj_manager_v1_create(display, 1, wlr_renderer_get_drm_fd(renderer));
+    }
 
     if(!allocator)
         throw std::runtime_error("failed to create wlr_allocator");
