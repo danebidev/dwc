@@ -48,7 +48,7 @@ class Server {
     wlr_layer_shell_v1* layer_shell;
     wlr_linux_dmabuf_v1* linux_dmabuf_v1;
     wlr_screencopy_manager_v1* screencopy_manager_v1;
-    wlr_ext_image_copy_capture_manager_v1* image_copy_capture_manager_v1;
+    wlr_ext_image_copy_capture_manager_v1* ext_image_copy_capture_manager_v1;
 
     template <typename T>
     T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy);

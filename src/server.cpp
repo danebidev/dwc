@@ -49,12 +49,14 @@ Server::Server()
       // outputs with the positions of corresponding layout outputs
       scene_layout(wlr_scene_attach_output_layout(root.scene, root.output_layout)),
 
-      // Protocols
+      // Input
       input_manager(display, backend),
 
+      // Protocols
       xdg_shell(wlr_xdg_shell_create(display, 6)),
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
       screencopy_manager_v1(wlr_screencopy_manager_v1_create(display)),
+      ext_image_copy_capture_manager_v1(wlr_ext_image_copy_capture_manager_v1_create(display, 1)),
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),
