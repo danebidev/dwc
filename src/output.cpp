@@ -46,7 +46,9 @@ output::Output::Output(wlr_output *output)
 
     // Add output to scene output layout
     wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
+
     server.root.arrange();
+    update_position();
 }
 
 void output::Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, wlr_scene_tree *tree,
@@ -112,6 +114,7 @@ void output::request_state(wl_listener *listener, void *data) {
     Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
     const wlr_output_event_request_state *event =
         static_cast<wlr_output_event_request_state *>(data);
+
     wlr_output_commit_state(output->output, event->state);
     output->arrange_layers();
     output->update_position();

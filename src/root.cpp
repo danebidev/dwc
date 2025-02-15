@@ -48,10 +48,10 @@ void nodes::Root::arrange() {
     for(auto& output : server.outputs) {
         wlr_scene_output_set_position(output->scene_output, output->lx, output->ly);
 
-        wlr_scene_node_reparent(&output->layers.shell_background->node, shell_background);
-        wlr_scene_node_reparent(&output->layers.shell_bottom->node, shell_bottom);
-        wlr_scene_node_reparent(&output->layers.shell_top->node, shell_top);
-        wlr_scene_node_reparent(&output->layers.shell_overlay->node, shell_overlay);
+        /*wlr_scene_node_reparent(&output->layers.shell_background->node, shell_background);*/
+        /*wlr_scene_node_reparent(&output->layers.shell_bottom->node, shell_bottom);*/
+        /*wlr_scene_node_reparent(&output->layers.shell_top->node, shell_top);*/
+        /*wlr_scene_node_reparent(&output->layers.shell_overlay->node, shell_overlay);*/
 
         wlr_scene_node_set_position(&output->layers.shell_background->node, output->lx, output->ly);
         wlr_scene_node_set_position(&output->layers.shell_bottom->node, output->lx, output->ly);

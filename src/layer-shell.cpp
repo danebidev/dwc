@@ -1,5 +1,7 @@
 #include "layer-shell.hpp"
 
+#include <cassert>
+
 #include "server.hpp"
 
 layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
@@ -18,8 +20,6 @@ layer_shell::LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, outpu
       new_popup(this, layer_shell::new_popup, &layer_surface->events.new_popup) {
     layer_surface->data = this;
     tree->node.data = this;
-    // The layer arrange on map and unmap should be enough
-    // output->arrange_layers();
 }
 
 void layer_shell::LayerSurface::handle_focus() {
@@ -46,6 +46,7 @@ void layer_shell::new_surface(wl_listener *listener, void *data) {
         layer_surface->output = server.outputs.front()->output;
     }
 
+    assert(layer_surface->output);
     output::Output *output = static_cast<output::Output *>(layer_surface->output->data);
     // Get requested layer type
     zwlr_layer_shell_v1_layer layer_type = layer_surface->pending.layer;
@@ -77,7 +78,10 @@ void layer_shell::map(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
     wlr_scene_node_set_enabled(&surface->scene->tree->node, true);
 
-    wl_signal_emit(&server.root.events.new_node, static_cast<void *>(&surface->node));
+    if(surface->layer_surface->current.keyboard_interactive !=
+       ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
+        wl_signal_emit(&server.root.events.new_node, static_cast<void *>(&surface->node));
+
     surface->output->arrange_layers();
 }
 
@@ -90,17 +94,18 @@ void layer_shell::unmap(wl_listener *listener, void *data) {
 
 void layer_shell::surface_commit(wl_listener *listener, void *data) {
     LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    bool rearrange = false;
+    server.root.arrange();
 
     if(surface->layer_surface->current.committed & WLR_LAYER_SURFACE_V1_STATE_LAYER) {
         wlr_scene_tree *new_tree =
             get_scene(surface->output, surface->layer_surface->current.layer);
         wlr_scene_node_reparent(&surface->scene->tree->node, new_tree);
+        rearrange = true;
     }
 
-    if(surface->layer_surface->initial_commit) {
-        wlr_layer_surface_v1_configure(surface->layer_surface,
-                                       surface->layer_surface->pending.desired_width,
-                                       surface->layer_surface->pending.desired_height);
+    if(surface->layer_surface->initial_commit || rearrange) {
+        wlr_layer_surface_v1_configure(surface->layer_surface, 0, 0);
         surface->output->arrange_layers();
     }
 }
