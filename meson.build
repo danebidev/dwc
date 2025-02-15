@@ -13,80 +13,40 @@ add_global_arguments('-DWLR_USE_UNSTABLE', language: 'c')
 wayland_scanner = find_program('wayland-scanner')
 pkg_config = find_program('pkg-config')
 
-protocol_sources = []
-protocol_code = []
+wayland_protos = dependency('wayland-protocols')
 
-protocols_wl_stable = ['xdg-shell']
+wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
 
-wl_protocols_dir = run_command(pkg_config, '--variable=pkgdatadir', 'wayland-protocols').stdout().replace('\n', '')
-foreach protocol : protocols_wl_stable
-  path = wl_protocols_dir / 'stable' / protocol / '@0@.xml'.format(protocol)
+protocols = [
+  'protocols/wlr-layer-shell-unstable-v1.xml',
+  wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml',
+  wl_protocol_dir / 'unstable/xdg-output/xdg-output-unstable-v1.xml',
+  wl_protocol_dir / 'staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml',
+  wl_protocol_dir / 'staging/ext-image-capture-source/ext-image-capture-source-v1.xml',
+  wl_protocol_dir / 'staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml',
+]
 
-  out_h = '@0@-protocol.h'.format(protocol)
-  header = custom_target(
-    out_h,
-    output: out_h,
-    input: path,
-    command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
-  )
-  protocol_sources += [header]
+wl_protos_src = []
 
-  out_c = '@0@-protocol.c'.format(protocol)
-  code = custom_target(
-    out_c,
-    output: out_c,
-    input: path,
+foreach xml : protocols
+  wl_protos_src += custom_target(
+    xml.underscorify() + '_c',
+    input: xml,
+    output: '@BASENAME@-protocol.c',
     command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
   )
-  protocol_code += [code]
-endforeach
-
-protocols_wl_unstable = ['xdg-output']
-
-foreach protocol : protocols_wl_unstable
-  path = wl_protocols_dir / 'unstable' / protocol / '@0@-unstable-v1.xml'.format(protocol)
-
-  out_h = '@0@-unstable-v1-protocol.h'.format(protocol)
-  header = custom_target(
-    out_h,
-    output: out_h,
-    input: path,
+  wl_protos_src += custom_target(
+    xml.underscorify() + '_server_h',
+    input: xml,
+    output: '@BASENAME@-protocol.h',
     command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
   )
-  protocol_sources += [header]
-
-  out_c = '@0@-unstable-v1-protocol.c'.format(protocol)
-  code = custom_target(
-    out_c,
-    output: out_c,
-    input: path,
-    command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+  wl_protos_src += custom_target(
+    xml.underscorify() + '_client_h',
+    input: xml,
+    output: '@BASENAME@-client-protocol.h',
+    command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
   )
-  protocol_code += [code]
-endforeach
-
-protocols_wlr_unstable = ['wlr-layer-shell-unstable-v1']
-
-foreach protocol : protocols_wlr_unstable
-  path = 'protocols' / '@0@.xml'.format(protocol)
-
-  out_h = '@0@-protocol.h'.format(protocol)
-  header = custom_target(
-    out_h,
-    output: out_h,
-    input: path,
-    command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
-  )
-  protocol_sources += [header]
-
-  out_c = '@0@-protocol.c'.format(protocol)
-  code = custom_target(
-    out_c,
-    output: out_c,
-    input: path,
-    command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
-  )
-  protocol_code += [code]
 endforeach
 
 conf_data = configuration_data()
@@ -105,8 +65,8 @@ include_dir = run_command(pkg_config, '--variable=includedir', 'wlroots-0.19').s
 include = include_directories('include', '.', include_dir, include_dir / 'wlroots-0.19')
 
 libs = [
+  wayland_protos,
   dependency('wayland-server'),
-  dependency('wayland-protocols'),
   dependency('wlroots-0.19'),
   dependency('xkbcommon'),
   dependency('libinput'),
@@ -121,8 +81,7 @@ sources = [
   'src/layer-shell.cpp',
   'src/input.cpp',
   'src/root.cpp',
-  protocol_sources,
-  protocol_code,
+  wl_protos_src,
 ]
 
 executable(

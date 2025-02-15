@@ -7,7 +7,6 @@
 
 #include "layer-shell.hpp"
 #include "output.hpp"
-#include "wlr.hpp"
 
 Server server;
 
@@ -78,6 +77,7 @@ Server::Server()
     wlr_data_device_manager_create(display);
 
     wlr_xdg_output_manager_v1_create(display, root.output_layout);
+    wlr_ext_output_image_capture_source_manager_v1_create(display, 1);
 }
 
 Server::~Server() {
