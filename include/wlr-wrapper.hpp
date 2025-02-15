@@ -7,9 +7,9 @@
 namespace wrapper {
     template <typename Container>
     class Listener : public wl_listener {
-        public:
         using Callback = void(wl_listener*, void*);
 
+        public:
         Listener(Container* cont, Callback cb, wl_signal* signal)
             : freed(false) {
             container = cont;

@@ -26,6 +26,23 @@ class Server {
 
     wlr_scene_output_layout* scene_layout;
 
+    // Input
+    input::InputManager input_manager;
+
+    // Misc.
+    std::list<xdg_shell::Toplevel*> toplevels;
+
+    Server();
+    ~Server();
+
+    void start(char* startup_cmd);
+
+    xdg_shell::Toplevel* toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
+                                     double& sy);
+    layer_shell::LayerSurface* layer_surface_at(double lx, double ly, wlr_surface*& surface,
+                                                double& sx, double& sy);
+
+    private:
     // Protocols
     wlr_xdg_shell* xdg_shell;
     wlr_layer_shell_v1* layer_shell;
@@ -33,28 +50,9 @@ class Server {
     wlr_screencopy_manager_v1* screencopy_manager_v1;
     wlr_ext_image_copy_capture_manager_v1* image_copy_capture_manager_v1;
 
-    // Seat
-    input::InputManager input_manager;
-
-    // Misc.
-    std::list<output::Output*> outputs;
-    std::list<xdg_shell::Toplevel*> toplevels;
-    std::list<keyboard::Keyboard*> keyboards;
-
-    void start(char* startup_cmd);
-
     template <typename T>
     T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy);
 
-    xdg_shell::Toplevel* toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
-                                     double& sy);
-    layer_shell::LayerSurface* layer_surface_at(double lx, double ly, wlr_surface*& surface,
-                                                double& sx, double& sy);
-
-    Server();
-    ~Server();
-
-    private:
     // Listeners
     wrapper::Listener<Server> new_output;
     wrapper::Listener<Server> new_xdg_toplevel;
@@ -65,9 +63,5 @@ class Server {
     wrapper::Listener<Server> xdg_shell_destroy;
     wrapper::Listener<Server> layer_shell_destroy;
 };
-
-void backend_destroy(wl_listener* listener, void* data);
-void xdg_shell_destroy(wl_listener* listener, void* data);
-void layer_shell_destroy(wl_listener* listener, void* data);
 
 extern Server server;

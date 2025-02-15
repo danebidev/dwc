@@ -21,7 +21,13 @@ namespace nodes {
 
     class Node {
         public:
+        struct {
+            // Called with the destroyed nodes::Node as data
+            wl_signal node_destroy;
+        } events;
+
         NodeType type;
+
         union {
             xdg_shell::Toplevel* toplevel;
             layer_shell::LayerSurface* layer_surface;
@@ -32,11 +38,6 @@ namespace nodes {
 
         // Always false for toplevels
         bool has_exclusivity();
-
-        struct {
-            // Called with the destroyed nodes::Node as data
-            wl_signal node_destroy;
-        } events;
     };
 
     // scene layout (from top to bottom):
@@ -54,8 +55,12 @@ namespace nodes {
     //     - [output trees]
     //   - shell_background
     //     - [output trees]
-    struct Root {
+    class Root {
+        public:
         wlr_scene* scene;
+        wlr_output_layout* output_layout;
+
+        std::list<output::Output*> outputs;
 
         wlr_scene_tree* shell_background;
         wlr_scene_tree* shell_bottom;
@@ -66,16 +71,15 @@ namespace nodes {
         wlr_scene_tree* layer_popups;
         wlr_scene_tree* seat;
 
-        wlr_output_layout* output_layout;
-        std::list<output::Output*> outputs;
+        struct {
+            // Called with the new nodes::Node as data
+            wl_signal new_node;
+        } events;
 
         Root(wl_display* display);
 
         void arrange();
 
-        struct {
-            // Called with the new nodes::Node as data
-            wl_signal new_node;
-        } events;
+        private:
     };
 }

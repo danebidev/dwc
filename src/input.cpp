@@ -14,12 +14,8 @@
 #define DEFAULT_SEAT "seat0"
 
 namespace cursor {
-    void new_pointer(wlr_input_device *device) {
-        wlr_cursor_attach_input_device(server.input_manager.seat.cursor.cursor, device);
-    }
-
     // Called when a pointer emits a relative pointer motion event
-    void cursor_motion(wl_listener *listener, void *data) {
+    void motion(wl_listener *listener, void *data) {
         Cursor *cursor = static_cast<wrapper::Listener<Cursor> *>(listener)->container;
         wlr_pointer_motion_event *event = static_cast<wlr_pointer_motion_event *>(data);
 
@@ -28,7 +24,7 @@ namespace cursor {
     }
 
     // Called when a pointer emits an absolute pointer motion event
-    void cursor_motion_absolute(wl_listener *listener, void *data) {
+    void motion_absolute(wl_listener *listener, void *data) {
         Cursor *cursor = static_cast<wrapper::Listener<Cursor> *>(listener)->container;
         wlr_pointer_motion_absolute_event *event =
             static_cast<wlr_pointer_motion_absolute_event *>(data);
@@ -38,7 +34,7 @@ namespace cursor {
     }
 
     // Called when a pointer emits a button event
-    void cursor_button(wl_listener *listener, void *data) {
+    void button(wl_listener *listener, void *data) {
         Cursor *cursor = static_cast<wrapper::Listener<Cursor> *>(listener)->container;
         wlr_pointer_button_event *event = static_cast<wlr_pointer_button_event *>(data);
         wlr_seat_pointer_notify_button(server.input_manager.seat.seat, event->time_msec,
@@ -68,7 +64,7 @@ namespace cursor {
     }
 
     // Called when a pointer emits an axis event, like a mouse wheel scroll
-    void cursor_axis(wl_listener *listener, void *data) {
+    void axis(wl_listener *listener, void *data) {
         wlr_pointer_axis_event *event = static_cast<wlr_pointer_axis_event *>(data);
 
         wlr_seat_pointer_notify_axis(server.input_manager.seat.seat, event->time_msec,
@@ -79,7 +75,7 @@ namespace cursor {
     // Called when a pointer emits a frame event
     // Frame events are sent after regular pointer events
     // to group multiple events together
-    void cursor_frame(wl_listener *listener, void *data) {
+    void frame(wl_listener *listener, void *data) {
         wlr_seat_pointer_notify_frame(server.input_manager.seat.seat);
     }
 
@@ -88,11 +84,11 @@ namespace cursor {
           cursor_mode(CursorMode::PASSTHROUGH),
           xcursor_mgr(wlr_xcursor_manager_create(nullptr, 24)),
 
-          motion(this, cursor::cursor_motion, &cursor->events.motion),
-          motion_absolute(this, cursor::cursor_motion_absolute, &cursor->events.motion_absolute),
-          button(this, cursor::cursor_button, &cursor->events.button),
-          axis(this, cursor::cursor_axis, &cursor->events.axis),
-          frame(this, cursor::cursor_frame, &cursor->events.frame) {
+          motion(this, cursor::motion, &cursor->events.motion),
+          motion_absolute(this, cursor::motion_absolute, &cursor->events.motion_absolute),
+          button(this, cursor::button, &cursor->events.button),
+          axis(this, cursor::axis, &cursor->events.axis),
+          frame(this, cursor::frame, &cursor->events.frame) {
         wlr_cursor_attach_output_layout(cursor, server.root.output_layout);
     }
 
@@ -118,7 +114,6 @@ namespace cursor {
 
         const char *current_image = image;
         image = new_image;
-        image_client = client;
 
         // Unset image if the new image is null
         if(!new_image)
@@ -242,7 +237,7 @@ namespace cursor {
             }
         }
 
-        struct wlr_box *geo_box = &toplevel->toplevel->base->geometry;
+        wlr_box *geo_box = &toplevel->toplevel->base->geometry;
         wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left - geo_box->x,
                                     new_top - geo_box->y);
 
@@ -308,7 +303,6 @@ namespace keyboard {
     // Called when a keyboard is destroyed
     void destroy(wl_listener *listener, void *data) {
         Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
-        server.keyboards.remove(keyboard);
         delete keyboard;
     }
 

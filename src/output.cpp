@@ -12,7 +12,7 @@ namespace output {
         wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
         Output *output = new Output(wlr_output);
         server.root.arrange();
-        server.outputs.push_back(output);
+        server.root.outputs.push_back(output);
     }
 
     // Called whenever an output wants to display a frame
@@ -46,7 +46,7 @@ namespace output {
     void destroy(wl_listener *listener, void *data) {
         Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
 
-        server.outputs.remove(output);
+        server.root.outputs.remove(output);
 
         delete output;
     }
@@ -96,6 +96,15 @@ namespace output {
         update_position();
     }
 
+    void Output::update_position() {
+        struct wlr_box output_box;
+        wlr_output_layout_get_box(server.root.output_layout, output, &output_box);
+        lx = output_box.x;
+        ly = output_box.y;
+        /*width = output_box.width;*/
+        /*height = output_box.height;*/
+    }
+
     void Output::arrange_layers() {
         wlr_box full_area = { 0 };
         wlr_output_effective_resolution(output, &full_area.width, &full_area.height);
@@ -112,15 +121,6 @@ namespace output {
         }
 
         // TODO: handle focus
-    }
-
-    void Output::update_position() {
-        struct wlr_box output_box;
-        wlr_output_layout_get_box(server.root.output_layout, output, &output_box);
-        lx = output_box.x;
-        ly = output_box.y;
-        width = output_box.width;
-        height = output_box.height;
     }
 
     wlr_scene_tree *Output::get_scene(zwlr_layer_shell_v1_layer type) {

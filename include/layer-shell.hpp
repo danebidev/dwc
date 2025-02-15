@@ -13,17 +13,18 @@ namespace layer_shell {
         wlr_layer_surface_v1* layer_surface;
         nodes::Node node;
 
+        wlr_scene_layer_surface_v1* scene;
+        output::Output* output;
+
+        std::vector<xdg_shell::Popup*> popups;
+
         LayerSurface(wlr_scene_layer_surface_v1* layer_surface, output::Output* output);
 
         void handle_focus();
 
-        wlr_scene_layer_surface_v1* scene;
-
+        private:
         wlr_scene_tree* popup_tree;
         wlr_scene_tree* tree;
-
-        output::Output* output;
-        std::vector<xdg_shell::Popup*> popups;
 
         wrapper::Listener<LayerSurface> map;
         wrapper::Listener<LayerSurface> unmap;

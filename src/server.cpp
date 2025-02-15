@@ -50,11 +50,11 @@ Server::Server()
       scene_layout(wlr_scene_attach_output_layout(root.scene, root.output_layout)),
 
       // Protocols
+      input_manager(display, backend),
+
       xdg_shell(wlr_xdg_shell_create(display, 6)),
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
       screencopy_manager_v1(wlr_screencopy_manager_v1_create(display)),
-
-      input_manager(display, backend),
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),

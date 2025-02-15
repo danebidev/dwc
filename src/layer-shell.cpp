@@ -9,13 +9,13 @@ namespace layer_shell {
         wlr_layer_surface_v1 *layer_surface = static_cast<wlr_layer_surface_v1 *>(data);
 
         if(!layer_surface->output) {
-            if(server.outputs.empty()) {
+            if(server.root.outputs.empty()) {
                 wlr_log(WLR_ERROR, "no output to assign layer surface '%s' to",
                         layer_surface->namespace_);
                 wlr_layer_surface_v1_destroy(layer_surface);
                 return;
             }
-            layer_surface->output = server.outputs.front()->output;
+            layer_surface->output = server.root.outputs.front()->output;
         }
 
         assert(layer_surface->output);
@@ -88,9 +88,9 @@ namespace layer_shell {
         : layer_surface(scene->layer_surface),
           node(this),
           scene(scene),
+          output(output),
           popup_tree(wlr_scene_tree_create(server.root.layer_popups)),
           tree(scene->tree),
-          output(output),
 
           map(this, layer_shell::map, &layer_surface->surface->events.map),
           unmap(this, layer_shell::unmap, &layer_surface->surface->events.unmap),

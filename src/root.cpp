@@ -25,6 +25,7 @@ bool nodes::Node::has_exclusivity() {
 nodes::Root::Root(wl_display* display)
     : scene(wlr_scene_create()),
 
+      output_layout(wlr_output_layout_create(display)),
       shell_background(wlr_scene_tree_create(&scene->tree)),
       shell_bottom(wlr_scene_tree_create(&scene->tree)),
       floating(wlr_scene_tree_create(&scene->tree)),
@@ -32,9 +33,8 @@ nodes::Root::Root(wl_display* display)
       shell_top(wlr_scene_tree_create(&scene->tree)),
       shell_overlay(wlr_scene_tree_create(&scene->tree)),
       layer_popups(wlr_scene_tree_create(&scene->tree)),
-      seat(wlr_scene_tree_create(&scene->tree)),
 
-      output_layout(wlr_output_layout_create(display)) {
+      seat(wlr_scene_tree_create(&scene->tree)) {
     wl_signal_init(&events.new_node);
 }
 
@@ -45,7 +45,7 @@ void nodes::Root::arrange() {
     wlr_scene_node_set_enabled(&shell_top->node, true);
     wlr_scene_node_set_enabled(&shell_overlay->node, true);
 
-    for(auto& output : server.outputs) {
+    for(auto& output : server.root.outputs) {
         wlr_scene_output_set_position(output->scene_output, output->lx, output->ly);
 
         /*wlr_scene_node_reparent(&output->layers.shell_background->node, shell_background);*/
