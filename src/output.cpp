@@ -1,6 +1,7 @@
 #include "output.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <map>
 
 #include "layer-shell.hpp"
@@ -20,16 +21,17 @@ namespace output {
 
         for(Output *output : server.root.outputs) {
             // Get the config head for each output
+            assert(output->output);
             wlr_output_configuration_head_v1 *config_head =
                 wlr_output_configuration_head_v1_create(config, output->output);
 
-            // Might or might not be needed
-            // output->update_position();
+            struct wlr_box output_box;
+            wlr_output_layout_get_box(server.root.output_layout, output->output, &output_box);
 
             // Mark the output enabled if it's swithed off but not disabled
-            config_head->state.enabled = !wlr_box_empty(&output->output_box);
-            config_head->state.x = output->output_box.x;
-            config_head->state.y = output->output_box.y;
+            config_head->state.enabled = !wlr_box_empty(&output_box);
+            config_head->state.x = output_box.x;
+            config_head->state.y = output_box.y;
         }
 
         // Update the configuration
@@ -130,8 +132,7 @@ namespace output {
 
           frame(this, output::frame, &output->events.frame),
           request_state(this, output::request_state, &output->events.request_state),
-          destroy(this, output::destroy, &output->events.destroy),
-          layout_update(this, output::layout_update, &server.root.output_layout->events.change) {
+          destroy(this, output::destroy, &output->events.destroy) {
         output->data = this;
 
         // Configures the output to use our allocator and renderer

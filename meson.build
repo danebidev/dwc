@@ -90,4 +90,6 @@ executable(
   sources,
   include_directories: include,
   dependencies: libs,
+  install: true,
+  install_dir: get_option('bindir'),
 )

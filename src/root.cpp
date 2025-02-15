@@ -24,8 +24,8 @@ bool nodes::Node::has_exclusivity() {
 
 nodes::Root::Root(wl_display* display)
     : scene(wlr_scene_create()),
-
       output_layout(wlr_output_layout_create(display)),
+
       shell_background(wlr_scene_tree_create(&scene->tree)),
       shell_bottom(wlr_scene_tree_create(&scene->tree)),
       floating(wlr_scene_tree_create(&scene->tree)),

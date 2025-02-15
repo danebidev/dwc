@@ -50,6 +50,7 @@ class Server {
     wlr_linux_dmabuf_v1* linux_dmabuf_v1;
     wlr_screencopy_manager_v1* screencopy_manager_v1;
     wlr_ext_image_copy_capture_manager_v1* ext_image_copy_capture_manager_v1;
+    wlr_xdg_output_manager_v1* xdg_output_manager_v1;
     wlr_output_manager_v1* output_manager_v1;
 
     template <typename T>
@@ -59,6 +60,7 @@ class Server {
     wrapper::Listener<Server> new_output;
     wrapper::Listener<Server> new_xdg_toplevel;
     wrapper::Listener<Server> new_layer_shell_surface;
+    wrapper::Listener<Server> layout_update;
     wrapper::Listener<Server> output_test;
     wrapper::Listener<Server> output_apply;
 

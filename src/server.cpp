@@ -65,12 +65,14 @@ Server::Server()
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
       screencopy_manager_v1(wlr_screencopy_manager_v1_create(display)),
       ext_image_copy_capture_manager_v1(wlr_ext_image_copy_capture_manager_v1_create(display, 1)),
+      xdg_output_manager_v1(wlr_xdg_output_manager_v1_create(display, root.output_layout)),
       output_manager_v1(wlr_output_manager_v1_create(display)),
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
       new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
+      layout_update(this, output::layout_update, &server.root.output_layout->events.change),
       output_test(this, ::output_test, &output_manager_v1->events.test),
       output_apply(this, ::output_apply, &output_manager_v1->events.apply),
 
@@ -111,7 +113,6 @@ Server::Server()
     // (copy-and-paste, drag-and-drop, etc.)
     wlr_data_device_manager_create(display);
 
-    wlr_xdg_output_manager_v1_create(display, root.output_layout);
     wlr_ext_output_image_capture_source_manager_v1_create(display, 1);
 }
 
