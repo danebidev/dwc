@@ -29,6 +29,7 @@ class Server {
     // Protocols
     wlr_xdg_shell* xdg_shell;
     wlr_layer_shell_v1* layer_shell;
+    wlr_screencopy_manager_v1* screencopy_manager_v1;
 
     // Seat
     input::InputManager input_manager;

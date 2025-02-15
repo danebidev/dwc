@@ -38,6 +38,7 @@ Server::Server()
       // Protocols
       xdg_shell(wlr_xdg_shell_create(display, 6)),
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
+      screencopy_manager_v1(wlr_screencopy_manager_v1_create(display)),
 
       input_manager(display, backend),
 

@@ -65,9 +65,7 @@ foreach protocol : protocols_wl_unstable
   protocol_code += [code]
 endforeach
 
-protocols_wlr_unstable = [
-  'wlr-layer-shell-unstable-v1',
-]
+protocols_wlr_unstable = ['wlr-layer-shell-unstable-v1']
 
 foreach protocol : protocols_wlr_unstable
   path = 'protocols' / '@0@.xml'.format(protocol)
