@@ -91,22 +91,27 @@ Server::~Server() {
 }
 
 void Server::start(char* startup_cmd) {
-    const char* socket = wl_display_add_socket_auto(display);
-    if(!socket) {
-        wlr_backend_destroy(backend);
-        throw std::runtime_error("couldn't create socket");
+    std::string socket;
+    for(int cur = 1; cur <= 32; cur++) {
+        socket = "wayland-" + std::to_string(cur);
+        int ret = wl_display_add_socket(display, socket.c_str());
+        if(!ret)
+            break;
+        else
+            wlr_log(WLR_INFO, "wl_display_add_socket for %s returned %d: skipping", socket.c_str(),
+                    ret);
     }
 
     if(!wlr_backend_start(backend))
         throw std::runtime_error("couldn't start backend");
 
-    setenv("WAYLAND_DISPLAY", socket, true);
+    setenv("WAYLAND_DISPLAY", socket.c_str(), true);
     if(startup_cmd) {
         if(fork() == 0)
             execl("/bin/sh", "/bin/sh", "-c", startup_cmd, (void*)nullptr);
     }
 
-    wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
+    wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket.c_str());
     wl_display_run(display);
 }
 
