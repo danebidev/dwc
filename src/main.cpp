@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "build-config.h"
+#include "config/config.hpp"
 #include "server.hpp"
 
 extern "C" {
@@ -11,13 +12,12 @@ extern "C" {
 
 #include <wlr.hpp>
 
-__attribute__((noreturn)) void usage() {
+void usage() {
     printf("Usage: %s [options]\n", PROGRAM_NAME);
     printf("Options:\n");
     printf("    -h              display this help message\n");
     printf("    -v              display debug output\n");
-    printf("    -s [command]    start a program on wm startup\n");
-    exit(EXIT_SUCCESS);
+    printf("    -c              set the config file path\n");
 }
 
 int main(int argc, char **argv) {
@@ -27,25 +27,34 @@ int main(int argc, char **argv) {
     wlr_log_init(WLR_INFO, nullptr);
 #endif
     char *startup_cmd = nullptr;
+    char *config_path = nullptr;
 
     int c;
-    while((c = getopt(argc, argv, "s:hv")) != -1) {
+    while((c = getopt(argc, argv, "c:hv")) != -1) {
         switch(c) {
             case 'h':
                 usage();
+                exit(0);
             case 'v':
                 wlr_log_init(WLR_DEBUG, nullptr);
                 break;
-            case 's':
-                startup_cmd = optarg;
+            case 'c':
+                config_path = optarg;
                 break;
             default:
                 usage();
+                exit(1);
         }
     }
 
-    if(optind < argc)
+    if(optind < argc) {
         usage();
+        exit(1);
+    }
+
+    if(config_path)
+        conf.set_config_path(config_path);
+    conf.load();
 
     try {
         server.start(startup_cmd);

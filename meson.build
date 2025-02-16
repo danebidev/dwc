@@ -4,7 +4,7 @@ project(
   'c',
   version: '0.1',
   default_options: [
-    'cpp_std=c++23',
+    'cpp_std=c++20',
   ],
 )
 
@@ -74,6 +74,8 @@ libs = [
 ]
 
 sources = [
+  'src/config/config.cpp',
+  'src/config/parser.cpp',
   'src/util.cpp',
   'src/main.cpp',
   'src/server.cpp',

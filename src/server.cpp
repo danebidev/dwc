@@ -133,9 +133,16 @@ void Server::start(char* startup_cmd) {
         throw std::runtime_error("couldn't start backend");
 
     setenv("WAYLAND_DISPLAY", socket.c_str(), true);
-    if(startup_cmd) {
-        if(fork() == 0)
-            execl("/bin/sh", "/bin/sh", "-c", startup_cmd, (void*)nullptr);
+
+    for(const auto& exec : conf.exec) {
+        int pid = fork();
+        if(pid < 0) {
+            wlr_log(WLR_ERROR, "fork() failed - exiting to avoid errors");
+            exit(EXIT_FAILURE);
+        }
+
+        if(pid == 0)
+            execl("/bin/sh", "/bin/sh", "-c", exec.c_str(), (void*)nullptr);
     }
 
     wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket.c_str());

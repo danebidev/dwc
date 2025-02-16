@@ -38,18 +38,18 @@ namespace output {
     }
 
     void apply_output_config(wlr_output_configuration_v1 *config, bool test) {
-        std::map<std::string, OutputConfig *> config_map;
+        std::map<std::string, config::OutputConfig *> config_map;
 
         struct wlr_output_configuration_head_v1 *config_head;
         wl_list_for_each(config_head, &config->heads, link) {
             std::string name = config_head->state.output->name;
-            config_map[name] = new OutputConfig(config_head);
+            config_map[name] = new config::OutputConfig(config_head);
         }
 
         // Apply configs
         bool success = true;
         for(Output *output : server.output_manager.outputs) {
-            OutputConfig *oc = config_map[output->output->name];
+            config::OutputConfig *oc = config_map[output->output->name];
             success &= output->apply_config(oc, test);
         }
 
@@ -66,36 +66,6 @@ namespace output {
 
     void output_apply(wl_listener *listener, void *data) {
         output::apply_output_config(static_cast<wlr_output_configuration_v1 *>(data), false);
-    }
-
-    OutputConfig::OutputConfig(wlr_output_configuration_head_v1 *config)
-        : enabled(true),
-          width(0),
-          height(0),
-          x(0.0),
-          y(0.0),
-          refresh(0.0),
-          transform(WL_OUTPUT_TRANSFORM_NORMAL),
-          scale(1.0),
-          adaptive_sync(false) {
-        enabled = config->state.enabled;
-
-        if(config->state.mode != NULL) {
-            struct wlr_output_mode *mode = config->state.mode;
-            width = mode->width;
-            height = mode->height;
-            refresh = mode->refresh / 1000.f;
-        }
-        else {
-            width = config->state.custom_mode.width;
-            height = config->state.custom_mode.height;
-            refresh = config->state.custom_mode.refresh / 1000.f;
-        }
-        x = config->state.x;
-        y = config->state.y;
-        transform = config->state.transform;
-        scale = config->state.scale;
-        adaptive_sync = config->state.adaptive_sync_enabled;
     }
 
     // Called whenever an output wants to display a frame
@@ -201,7 +171,7 @@ namespace output {
         // TODO: handle focus
     }
 
-    bool Output::apply_config(OutputConfig *config, bool test) {
+    bool Output::apply_config(config::OutputConfig *config, bool test) {
         wlr_output *wlr_output = output;
 
         wlr_output_state state;
