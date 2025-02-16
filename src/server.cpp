@@ -72,7 +72,7 @@ Server::Server()
       new_output(this, output::new_output, &backend->events.new_output),
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
       new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
-      layout_update(this, output::layout_update, &server.root.output_layout->events.change),
+      layout_update(this, output::layout_update, &root.output_layout->events.change),
       output_test(this, ::output_test, &output_manager_v1->events.test),
       output_apply(this, ::output_apply, &output_manager_v1->events.apply),
 

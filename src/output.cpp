@@ -11,9 +11,8 @@
 namespace output {
     void new_output(wl_listener *listener, void *data) {
         wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
-        Output *output = new Output(wlr_output);
+        new Output(wlr_output);
         server.root.arrange();
-        server.root.outputs.push_back(output);
     }
 
     void layout_update(wl_listener *listener, void *data) {
@@ -137,6 +136,8 @@ namespace output {
 
         // Configures the output to use our allocator and renderer
         wlr_output_init_render(output, server.allocator, server.renderer);
+
+        server.root.outputs.push_back(this);
 
         // Enables the output if it's not enabled
         wlr_output_state state;
