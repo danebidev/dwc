@@ -29,7 +29,7 @@ namespace output {
     class Output {
         friend void frame(wl_listener*, void*);
         friend void request_state(wl_listener*, void*);
-        friend void destroy(wl_listener* listener, void* data);
+        friend void output_destroy(wl_listener* listener, void* data);
 
         public:
         wlr_output* output;
@@ -60,5 +60,23 @@ namespace output {
 
         void arrange_surface(wlr_box* full_area, wlr_box* usable_area, wlr_scene_tree* tree,
                              bool exclusive);
+    };
+
+    class OutputManager {
+        friend void output_layout_destroy(wl_listener*, void*);
+        friend void output_manager_destroy(wl_listener*, void*);
+
+        public:
+        std::list<Output*> outputs;
+
+        OutputManager(wl_display* display);
+
+        private:
+        wrapper::Listener<OutputManager> layout_update;
+        wrapper::Listener<OutputManager> output_test;
+        wrapper::Listener<OutputManager> output_apply;
+
+        wrapper::Listener<OutputManager> output_layout_destroy;
+        wrapper::Listener<OutputManager> output_manager_destroy;
     };
 }

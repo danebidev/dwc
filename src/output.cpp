@@ -18,7 +18,7 @@ namespace output {
     void layout_update(wl_listener *listener, void *data) {
         wlr_output_configuration_v1 *config = wlr_output_configuration_v1_create();
 
-        for(Output *output : server.root.outputs) {
+        for(Output *output : server.output_manager.outputs) {
             // Get the config head for each output
             assert(output->output);
             wlr_output_configuration_head_v1 *config_head =
@@ -48,7 +48,7 @@ namespace output {
 
         // Apply configs
         bool success = true;
-        for(Output *output : server.root.outputs) {
+        for(Output *output : server.output_manager.outputs) {
             OutputConfig *oc = config_map[output->output->name];
             success &= output->apply_config(oc, test);
         }
@@ -58,6 +58,14 @@ namespace output {
             wlr_output_configuration_v1_send_succeeded(config);
         else
             wlr_output_configuration_v1_send_failed(config);
+    }
+
+    void output_test(wl_listener *listener, void *data) {
+        output::apply_output_config(static_cast<wlr_output_configuration_v1 *>(data), true);
+    }
+
+    void output_apply(wl_listener *listener, void *data) {
+        output::apply_output_config(static_cast<wlr_output_configuration_v1 *>(data), false);
     }
 
     OutputConfig::OutputConfig(wlr_output_configuration_head_v1 *config)
@@ -118,9 +126,9 @@ namespace output {
     }
 
     // Called when an output is destroyed
-    void destroy(wl_listener *listener, void *data) {
+    void output_destroy(wl_listener *listener, void *data) {
         Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-        server.root.outputs.remove(output);
+        server.output_manager.outputs.remove(output);
         delete output;
     }
 
@@ -131,13 +139,13 @@ namespace output {
 
           frame(this, output::frame, &output->events.frame),
           request_state(this, output::request_state, &output->events.request_state),
-          destroy(this, output::destroy, &output->events.destroy) {
+          destroy(this, output::output_destroy, &output->events.destroy) {
         output->data = this;
 
         // Configures the output to use our allocator and renderer
         wlr_output_init_render(output, server.allocator, server.renderer);
 
-        server.root.outputs.push_back(this);
+        server.output_manager.outputs.push_back(this);
 
         // Enables the output if it's not enabled
         wlr_output_state state;
@@ -286,4 +294,27 @@ namespace output {
             wlr_scene_layer_surface_v1_configure(surface->scene, full_area, usable_area);
         }
     }
+
+    void output_layout_destroy(wl_listener *listener, void *data) {
+        OutputManager *out = static_cast<wrapper::Listener<OutputManager> *>(listener)->container;
+        out->layout_update.free();
+        out->output_layout_destroy.free();
+    }
+
+    void output_manager_destroy(wl_listener *listener, void *data) {
+        OutputManager *out = static_cast<wrapper::Listener<OutputManager> *>(listener)->container;
+        out->output_test.free();
+        out->output_apply.free();
+        out->output_manager_destroy.free();
+    }
+
+    OutputManager::OutputManager(wl_display *display)
+        : layout_update(this, output::layout_update, &server.root.output_layout->events.change),
+          output_test(this, output::output_test, &server.output_manager_v1->events.test),
+          output_apply(this, output::output_apply, &server.output_manager_v1->events.apply),
+
+          output_layout_destroy(this, output::output_layout_destroy,
+                                &server.root.output_layout->events.destroy),
+          output_manager_destroy(this, output::output_manager_destroy,
+                                 &server.output_manager_v1->events.destroy) {}
 }

@@ -25,14 +25,6 @@ void layer_shell_destroy(wl_listener* listener, void* data) {
     server.layer_shell_destroy.free();
 }
 
-void output_test(wl_listener* listener, void* data) {
-    output::apply_output_config(static_cast<wlr_output_configuration_v1*>(data), true);
-}
-
-void output_apply(wl_listener* listener, void* data) {
-    output::apply_output_config(static_cast<wlr_output_configuration_v1*>(data), false);
-}
-
 Server::Server()
     :  // wl_display global.
        // Needed for the registry and the creation of more objects
@@ -55,26 +47,24 @@ Server::Server()
 
       // Attaches an output layout to a scene, to synchronize the positions of scene
       // outputs with the positions of corresponding layout outputs
-      scene_layout(wlr_scene_attach_output_layout(root.scene, root.output_layout)),
-
-      // Input
-      input_manager(display, backend),
+      scene_layout(wlr_scene_attach_output_layout(root.scene, server.root.output_layout)),
 
       // Protocols
       xdg_shell(wlr_xdg_shell_create(display, 6)),
       layer_shell(wlr_layer_shell_v1_create(display, 5)),
       screencopy_manager_v1(wlr_screencopy_manager_v1_create(display)),
       ext_image_copy_capture_manager_v1(wlr_ext_image_copy_capture_manager_v1_create(display, 1)),
-      xdg_output_manager_v1(wlr_xdg_output_manager_v1_create(display, root.output_layout)),
+      xdg_output_manager_v1(wlr_xdg_output_manager_v1_create(display, server.root.output_layout)),
       output_manager_v1(wlr_output_manager_v1_create(display)),
+
+      // Managers for input and output
+      input_manager(display, backend),
+      output_manager(display),
 
       // Listeners
       new_output(this, output::new_output, &backend->events.new_output),
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
       new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
-      layout_update(this, output::layout_update, &root.output_layout->events.change),
-      output_test(this, ::output_test, &output_manager_v1->events.test),
-      output_apply(this, ::output_apply, &output_manager_v1->events.apply),
 
       // Cleanup listeners
       backend_destroy(this, ::backend_destroy, &backend->events.destroy),

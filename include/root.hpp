@@ -60,8 +60,6 @@ namespace nodes {
         wlr_scene* scene;
         wlr_output_layout* output_layout;
 
-        std::list<output::Output*> outputs;
-
         wlr_scene_tree* shell_background;
         wlr_scene_tree* shell_bottom;
         wlr_scene_tree* floating;

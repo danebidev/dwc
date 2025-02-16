@@ -9,13 +9,13 @@ namespace layer_shell {
         wlr_layer_surface_v1 *layer_surface = static_cast<wlr_layer_surface_v1 *>(data);
 
         if(!layer_surface->output) {
-            if(server.root.outputs.empty()) {
+            if(server.output_manager.outputs.empty()) {
                 wlr_log(WLR_ERROR, "no output to assign layer surface '%s' to",
                         layer_surface->namespace_);
                 wlr_layer_surface_v1_destroy(layer_surface);
                 return;
             }
-            layer_surface->output = server.root.outputs.front()->output;
+            layer_surface->output = server.output_manager.outputs.front()->output;
         }
 
         assert(layer_surface->output);

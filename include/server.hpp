@@ -13,7 +13,6 @@ class Server {
     friend void backend_destroy(wl_listener*, void*);
     friend void xdg_shell_destroy(wl_listener*, void*);
     friend void layer_shell_destroy(wl_listener*, void*);
-    friend void output::layout_update(wl_listener*, void*);
 
     public:
     // Globals
@@ -24,13 +23,21 @@ class Server {
 
     // Scene graph root
     nodes::Root root;
-
     wlr_scene_output_layout* scene_layout;
 
-    // Input
-    input::InputManager input_manager;
+    // Protocols
+    wlr_xdg_shell* xdg_shell;
+    wlr_layer_shell_v1* layer_shell;
+    wlr_linux_dmabuf_v1* linux_dmabuf_v1;
+    wlr_screencopy_manager_v1* screencopy_manager_v1;
+    wlr_ext_image_copy_capture_manager_v1* ext_image_copy_capture_manager_v1;
+    wlr_xdg_output_manager_v1* xdg_output_manager_v1;
+    wlr_output_manager_v1* output_manager_v1;
 
     // Misc.
+    input::InputManager input_manager;
+    output::OutputManager output_manager;
+
     std::list<xdg_shell::Toplevel*> toplevels;
 
     Server();
@@ -44,15 +51,6 @@ class Server {
                                                 double& sx, double& sy);
 
     private:
-    // Protocols
-    wlr_xdg_shell* xdg_shell;
-    wlr_layer_shell_v1* layer_shell;
-    wlr_linux_dmabuf_v1* linux_dmabuf_v1;
-    wlr_screencopy_manager_v1* screencopy_manager_v1;
-    wlr_ext_image_copy_capture_manager_v1* ext_image_copy_capture_manager_v1;
-    wlr_xdg_output_manager_v1* xdg_output_manager_v1;
-    wlr_output_manager_v1* output_manager_v1;
-
     template <typename T>
     T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy);
 
@@ -60,9 +58,6 @@ class Server {
     wrapper::Listener<Server> new_output;
     wrapper::Listener<Server> new_xdg_toplevel;
     wrapper::Listener<Server> new_layer_shell_surface;
-    wrapper::Listener<Server> layout_update;
-    wrapper::Listener<Server> output_test;
-    wrapper::Listener<Server> output_apply;
 
     // Cleanup listeners
     wrapper::Listener<Server> backend_destroy;

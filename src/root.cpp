@@ -45,7 +45,7 @@ void nodes::Root::arrange() {
     wlr_scene_node_set_enabled(&shell_top->node, true);
     wlr_scene_node_set_enabled(&shell_overlay->node, true);
 
-    for(auto& output : server.root.outputs) {
+    for(auto& output : server.output_manager.outputs) {
         wlr_scene_output_set_position(output->scene_output, output->output_box.x,
                                       output->output_box.y);
 
