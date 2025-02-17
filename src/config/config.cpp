@@ -13,16 +13,22 @@ extern char** environ;
 
 namespace config {
     uint32_t parse_modifier(std::string modifier) {
+        std::transform(modifier.begin(), modifier.end(), modifier.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
         const std::string modifiers[] = {
-            "Shift", "Caps", "Control", "Alt", "Mod2", "Mod3", "Logo", "Mod5",
+            "shift", "caps", "ctrl", "alt", "mod2", "mod3", "super", "mod5",
         };
 
-        for(int i = 0; i != 8; ++i)
+        for(int i = 0; i < 8; ++i)
             if(modifier == modifiers[i])
                 return 1 << i;
 
-        return 69;
+        return 1 << 9;
     }
+
+    Bind::Bind()
+        : modifiers(0) {}
 
     Bind* Bind::from_str(int line, std::string str) {
         Bind* bind = new Bind;
@@ -41,9 +47,10 @@ namespace config {
             if(sym == XKB_KEY_NoSymbol) {
                 uint32_t modifier = parse_modifier(token);
 
-                if(modifier == 69) {
+                if(modifier == (1 << 9)) {
                     wlr_log(WLR_ERROR, "config [%d]: no such keycode or modifier '%s'", line,
                             token.c_str());
+                    delete bind;
                     return nullptr;
                 }
 
@@ -106,6 +113,10 @@ namespace config {
         for(auto& command : commands) {
             delete command;
         }
+        for(auto& bind : binds) {
+            delete bind.first;
+        }
+
         commands.clear();
         vars.clear();
         binds.clear();
@@ -135,6 +146,9 @@ namespace config {
     Config::~Config() {
         for(auto& command : commands) {
             delete command;
+        }
+        for(auto& bind : binds) {
+            delete bind.first;
         }
     }
 

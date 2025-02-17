@@ -14,6 +14,8 @@ namespace config {
         uint32_t modifiers;
         xkb_keysym_t sym;
 
+        Bind();
+
         bool operator==(const Bind other) {
             return modifiers == other.modifiers && sym == other.sym;
         }

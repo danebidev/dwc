@@ -8,7 +8,7 @@
 #include "util.hpp"
 
 namespace commands {
-    enum class CommandType { SET, ENV, EXEC, EXEC_ALWAYS, OUTPUT, BIND };
+    enum class CommandType { SET, ENV, EXEC, EXEC_ALWAYS, OUTPUT, BIND, TERMINATE };
 
     struct Command;
 
@@ -109,6 +109,14 @@ namespace commands {
         ~BindCommand() override;
 
         static BindCommand* parse(int line, std::vector<std::string> args);
+        bool subcommand_of(CommandType type) override;
+        void execute(ConfigLoadPhase phase) override;
+    };
+
+    struct TerminateCommand : Command {
+        TerminateCommand(int line);
+
+        static TerminateCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
         void execute(ConfigLoadPhase phase) override;
     };

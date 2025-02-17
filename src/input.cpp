@@ -249,22 +249,6 @@ namespace cursor {
 }
 
 namespace keyboard {
-    // TODO: config
-    bool handle_keybinding(xkb_keysym_t sym) {
-        switch(sym) {
-            case XKB_KEY_Escape:
-                wl_display_terminate(server.display);
-                break;
-            case XKB_KEY_t:
-                if(fork() == 0)
-                    execl("/bin/sh", "/bin/sh", "-c", "foot", (void *)nullptr);
-                break;
-            default:
-                return false;
-        }
-        return true;
-    }
-
     // Called when a modifier key (ctrl, shift, alt, etc.) is pressed
     void modifiers(wl_listener *listener, void *data) {
         Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
@@ -287,9 +271,19 @@ namespace keyboard {
 
         bool handled = false;
         uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
-        if((modifiers & WLR_MODIFIER_ALT) && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-            for(int i = 0; i < nsyms; i++) {
-                handled = handle_keybinding(syms[i]);
+
+        // This is stupidly slow to do on each keypress
+        // TODO: nuke this
+        if(event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+            for(auto &[bind, command] : conf.binds) {
+                if((bind->modifiers | modifiers) == modifiers) {
+                    for(int i = 0; i < nsyms; i++) {
+                        if(syms[i] == bind->sym) {
+                            command->execute(ConfigLoadPhase::BIND);
+                            handled = true;
+                        }
+                    }
+                }
             }
         }
 

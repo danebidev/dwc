@@ -5,6 +5,7 @@
 #include <cassert>
 
 #include "config/config.hpp"
+#include "server.hpp"
 #include "wlr.hpp"
 
 namespace commands {
@@ -64,6 +65,8 @@ namespace commands {
             command = OutputCommand::parse(line, args, block);
         else if(name == "bind")
             command = BindCommand::parse(line, args);
+        else if(name == "terminate")
+            command = TerminateCommand::parse(line, args);
         else {
             wlr_log(WLR_ERROR, "config [%d]: command '%s' not recognized", line, name.c_str());
             return nullptr;
@@ -160,7 +163,7 @@ namespace commands {
 
     void ExecCommand::execute(ConfigLoadPhase phase) {
         // execs only get executed on first start
-        if(phase != ConfigLoadPhase::COMPOSITOR_START)
+        if(phase != ConfigLoadPhase::COMPOSITOR_START && phase != ConfigLoadPhase::BIND)
             return;
         int pid = fork();
         if(pid < 0) {
@@ -267,11 +270,33 @@ namespace commands {
     }
 
     void BindCommand::execute(ConfigLoadPhase phase) {
-        if(phase != ConfigLoadPhase::COMPOSITOR_START)
+        if(phase != ConfigLoadPhase::COMPOSITOR_START && phase != ConfigLoadPhase::RELOAD)
             return;
 
         config::Bind* bind = config::Bind::from_str(line, keybind.str(conf.vars));
-        conf.binds.push_back({ bind, command });
+        if(bind) {
+            conf.binds.push_back({ bind, command });
+            wlr_log(WLR_ERROR, "%ub", bind->modifiers);
+        }
+    }
+
+    TerminateCommand::TerminateCommand(int line)
+        : Command(line, CommandType::TERMINATE, false) {}
+
+    TerminateCommand* TerminateCommand::parse(int line, std::vector<std::string> args) {
+        if(args.size()) {
+            wlr_log(WLR_ERROR, "config [%d]: too many arguments", line);
+        }
+
+        return new TerminateCommand(line);
+    }
+
+    bool TerminateCommand::subcommand_of(CommandType type) {
+        return type == CommandType::BIND;
+    }
+
+    void TerminateCommand::execute(ConfigLoadPhase phase) {
+        wl_display_terminate(server.display);
     }
 }
 
