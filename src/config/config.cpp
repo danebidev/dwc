@@ -3,16 +3,59 @@
 #include <unistd.h>
 #include <wordexp.h>
 
+#include <cassert>
 #include <fstream>
 #include <sstream>
-
-#include "config/parser.hpp"
 
 config::Config conf;
 
 extern char** environ;
 
 namespace config {
+    uint32_t parse_modifier(std::string modifier) {
+        const std::string modifiers[] = {
+            "Shift", "Caps", "Control", "Alt", "Mod2", "Mod3", "Logo", "Mod5",
+        };
+
+        for(int i = 0; i != 8; ++i)
+            if(modifier == modifiers[i])
+                return 1 << i;
+
+        return 69;
+    }
+
+    Bind* Bind::from_str(int line, std::string str) {
+        Bind* bind = new Bind;
+
+        std::string token;
+        std::stringstream ss(str);
+
+        while(std::getline(ss, token, '+')) {
+            if(token == "Number") {
+                bind->sym = XKB_KEY_NoSymbol;
+                continue;
+            }
+
+            xkb_keysym_t sym = xkb_keysym_from_name(token.c_str(), XKB_KEYSYM_NO_FLAGS);
+
+            if(sym == XKB_KEY_NoSymbol) {
+                uint32_t modifier = parse_modifier(token);
+
+                if(modifier == 69) {
+                    wlr_log(WLR_ERROR, "config [%d]: no such keycode or modifier '%s'", line,
+                            token.c_str());
+                    return nullptr;
+                }
+
+                bind->modifiers |= modifier;
+            }
+            else
+                bind->sym = sym;
+        }
+
+        return bind;
+    }
+
     OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config)
         : enabled(true),
           width(0),
@@ -60,8 +103,15 @@ namespace config {
         if((text = read_file()).empty())
             return;
 
-        parser::Parser parser(text);
-        std::vector<statements::Statement*> statements = parser.parse();
+        for(auto& command : commands) {
+            delete command;
+        }
+        commands.clear();
+        vars.clear();
+        binds.clear();
+
+        parsing::Parser parser(text);
+        commands = parser.parse();
 
         char** env = environ;
         for(; *env; ++env) {
@@ -74,25 +124,17 @@ namespace config {
             std::string value = cur.substr(pos + 1, cur.size());
             vars[name] = value;
         }
+    }
 
-        for(auto& statement : statements) {
-            switch(statement->type) {
-                case statements::StatementType::SET:
-                    command_set(static_cast<statements::SetStatement*>(statement));
-                    break;
-                case statements::StatementType::ENV:
-                    command_env(static_cast<statements::EnvStatement*>(statement));
-                    break;
-                case statements::StatementType::EXEC:
-                    command_exec(static_cast<statements::ExecStatement*>(statement));
-                    break;
-                case statements::StatementType::EXEC_ALWAYS:
-                    command_exec_always(static_cast<statements::ExecAlwaysStatement*>(statement));
-                    break;
-                case statements::StatementType::OUTPUT:
-                    command_output(static_cast<statements::OutputStatement*>(statement));
-                    break;
-            }
+    void Config::execute_phase(ConfigLoadPhase phase) {
+        for(auto& command : commands) {
+            command->execute(phase);
+        }
+    }
+
+    Config::~Config() {
+        for(auto& command : commands) {
+            delete command;
         }
     }
 
@@ -134,31 +176,5 @@ namespace config {
         input.close();
 
         return sstr.str();
-    }
-
-    void Config::command_set(statements::SetStatement* statement) {
-        vars[statement->name] = statement->content.str(vars);
-        delete statement;
-    }
-
-    void Config::command_env(statements::EnvStatement* statement) {
-        setenv(statement->name.c_str(), statement->content.str(vars).c_str(), true);
-        vars[statement->name] = statement->content.str(vars);
-        delete statement;
-    }
-
-    void Config::command_exec(statements::ExecStatement* statement) {
-        exec.push_back(statement->content.str(vars));
-        delete statement;
-    }
-
-    void Config::command_exec_always(statements::ExecAlwaysStatement* statement) {
-        exec_always.push_back(statement->content.str(vars));
-        delete statement;
-    }
-
-    void Config::command_output(statements::OutputStatement* statement) {
-        // TODO
-        delete statement;
     }
 }

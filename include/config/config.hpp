@@ -5,10 +5,22 @@
 #include <unordered_map>
 #include <vector>
 
-#include "config/parser.hpp"
+#include "config/commands.hpp"
+#include "util.hpp"
 #include "wlr.hpp"
 
 namespace config {
+    struct Bind {
+        uint32_t modifiers;
+        xkb_keysym_t sym;
+
+        bool operator==(const Bind other) {
+            return modifiers == other.modifiers && sym == other.sym;
+        }
+
+        static Bind *from_str(int line, std::string text);
+    };
+
     class OutputConfig {
         public:
         std::string name;
@@ -27,26 +39,20 @@ namespace config {
         public:
         void set_config_path(std::filesystem::path path);
         void load();
+        void execute_phase(ConfigLoadPhase phase);
 
-        std::vector<std::string> exec;
-        std::vector<std::string> exec_always;
+        std::unordered_map<std::string, std::string> vars;
+        std::vector<std::pair<Bind *, commands::Command *>> binds;
 
-        std::vector<std::pair<std::string, std::string>> env;
+        std::vector<commands::Command *> commands;
+
+        ~Config();
 
         private:
         std::filesystem::path config_path;
-        std::string text;
-
-        std::unordered_map<std::string, std::string> vars;
 
         void default_config_path();
         std::string read_file();
-
-        void command_set(statements::SetStatement *statement);
-        void command_env(statements::EnvStatement *statement);
-        void command_exec(statements::ExecStatement *statement);
-        void command_exec_always(statements::ExecAlwaysStatement *statement);
-        void command_output(statements::OutputStatement *statement);
     };
 }
 

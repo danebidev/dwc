@@ -75,7 +75,7 @@ libs = [
 
 sources = [
   'src/config/config.cpp',
-  'src/config/parser.cpp',
+  'src/config/commands.cpp',
   'src/util.cpp',
   'src/main.cpp',
   'src/server.cpp',

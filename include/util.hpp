@@ -4,6 +4,7 @@
 
 #include "wlr.hpp"
 
-void trim(std::string &s);
+enum class ConfigLoadPhase { CONFIG_FIRST_LOAD, COMPOSITOR_START, RELOAD };
 
+void trim(std::string &s);
 std::string device_identifier(wlr_input_device *device);

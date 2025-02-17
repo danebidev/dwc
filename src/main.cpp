@@ -54,7 +54,9 @@ int main(int argc, char **argv) {
 
     if(config_path)
         conf.set_config_path(config_path);
+
     conf.load();
+    conf.execute_phase(ConfigLoadPhase::CONFIG_FIRST_LOAD);
 
     try {
         server.start(startup_cmd);
