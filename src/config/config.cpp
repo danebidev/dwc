@@ -48,7 +48,7 @@ namespace config {
                 uint32_t modifier = parse_modifier(token);
 
                 if(modifier == (1 << 9)) {
-                    wlr_log(WLR_ERROR, "config [%d]: no such keycode or modifier '%s'", line,
+                    wlr_log(WLR_ERROR, "Error on line %d: no such keycode or modifier '%s'", line,
                             token.c_str());
                     delete bind;
                     return nullptr;

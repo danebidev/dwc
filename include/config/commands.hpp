@@ -148,7 +148,7 @@ namespace parsing {
         char consume();
         char peek();
 
-        Token read_token();
+        std::optional<Token> read_token();
         std::string read_word();
         std::optional<std::string> read_string();
     };

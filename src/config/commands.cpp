@@ -68,13 +68,14 @@ namespace commands {
         else if(name == "terminate")
             command = TerminateCommand::parse(line, args);
         else {
-            wlr_log(WLR_ERROR, "config [%d]: command '%s' not recognized", line, name.c_str());
+            wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
             return nullptr;
         }
 
         if(!command->can_have_block && block.has_value()) {
             wlr_log(WLR_ERROR,
-                    "config [%d]: bracket block passed to command that doesn't require it", line);
+                    "Error on line %d: bracket block passed to command that doesn't require it",
+                    line);
             return nullptr;
         }
 
@@ -88,7 +89,7 @@ namespace commands {
 
     SetCommand* SetCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "config [%d]: missing set argument", line);
+            wlr_log(WLR_ERROR, "Error on line %d: missing set argument", line);
             return nullptr;
         }
         std::string value;
@@ -117,7 +118,7 @@ namespace commands {
 
     EnvCommand* EnvCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "config [%d]: missing env argument", line);
+            wlr_log(WLR_ERROR, "Error on line %d: missing env argument", line);
             return nullptr;
         }
         std::string value;
@@ -146,7 +147,7 @@ namespace commands {
 
     ExecCommand* ExecCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "config [%d]: missing exec argument", line);
+            wlr_log(WLR_ERROR, "Error on line %d: missing exec argument", line);
             return nullptr;
         }
         std::string value;
@@ -181,7 +182,7 @@ namespace commands {
 
     ExecAlwaysCommand* ExecAlwaysCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "config [%d]: missing exec_always argument", line);
+            wlr_log(WLR_ERROR, "Error on line %d: missing exec_always argument", line);
             return nullptr;
         }
         std::string value;
@@ -223,7 +224,7 @@ namespace commands {
     OutputCommand* OutputCommand::parse(int line, std::vector<std::string> args,
                                         std::optional<std::vector<commands::Command*>> block) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "config [%d]: missing output name", line);
+            wlr_log(WLR_ERROR, "Error on line %d: missing output name", line);
             return nullptr;
         }
         // TODO
@@ -250,9 +251,9 @@ namespace commands {
     BindCommand* BindCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() < 2) {
             if(args.size() == 0)
-                wlr_log(WLR_ERROR, "config [%d]: missing keybind argument", line);
+                wlr_log(WLR_ERROR, "Error on line %d: missing keybind argument", line);
             else
-                wlr_log(WLR_ERROR, "config [%d]: missing keybind command", line);
+                wlr_log(WLR_ERROR, "Error on line %d: missing keybind command", line);
             return nullptr;
         }
 
@@ -274,10 +275,8 @@ namespace commands {
             return;
 
         config::Bind* bind = config::Bind::from_str(line, keybind.str(conf.vars));
-        if(bind) {
+        if(bind)
             conf.binds.push_back({ bind, command });
-            wlr_log(WLR_ERROR, "%ub", bind->modifiers);
-        }
     }
 
     TerminateCommand::TerminateCommand(int line)
@@ -285,7 +284,7 @@ namespace commands {
 
     TerminateCommand* TerminateCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
-            wlr_log(WLR_ERROR, "config [%d]: too many arguments", line);
+            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
         }
 
         return new TerminateCommand(line);
@@ -347,7 +346,7 @@ namespace parsing {
         return text[index];
     }
 
-    Token Lexer::read_token() {
+    std::optional<Token> Lexer::read_token() {
         while(peek() == ' ') consume();
         char c = peek();
 
@@ -367,6 +366,10 @@ namespace parsing {
             consume();
             return Token(line, TokenType::BRACKET_CLOSE);
         }
+        else if(c == '#') {
+            while(peek() != '\n' && peek() != '\0') consume();
+            return std::nullopt;
+        }
         else if(c == '"') {
             std::optional<std::string> s = read_string();
             if(s.has_value())
@@ -381,6 +384,11 @@ namespace parsing {
         std::string result;
         while(1) {
             char c = peek();
+            if(c == '#') {
+                while(peek() != '\n' && peek() != '\0') consume();
+                break;
+            }
+
             while(peek() == ' ') consume();
             if(c == '\0' || c == '\n' || c == ' ')
                 break;
@@ -402,7 +410,7 @@ namespace parsing {
                 break;
 
             if(c == '\0' || c == '\n') {
-                wlr_log(WLR_ERROR, "config [%d]: opened string is never closed", line);
+                wlr_log(WLR_ERROR, "Error on line %d: opened string is never closed", line);
                 return std::nullopt;
             }
 
@@ -460,7 +468,7 @@ namespace parsing {
         Token token = consume();
 
         if(token.type != TokenType::ARG) {
-            wlr_log(WLR_ERROR, "config [%d] expected command", token.line);
+            wlr_log(WLR_ERROR, "Error on line %d: expected command", token.line);
             return nullptr;
         }
 
@@ -477,7 +485,7 @@ namespace parsing {
                 std::vector<commands::Command*> block = parse(true);
                 token = consume();
                 if(token.type != TokenType::BRACKET_CLOSE) {
-                    wlr_log(WLR_ERROR, "config [%d]: expected '}'", token.line);
+                    wlr_log(WLR_ERROR, "Error on line %d: expected '}'", token.line);
                     return nullptr;
                 }
                 return commands::Command::parse(line, name, args, block);
