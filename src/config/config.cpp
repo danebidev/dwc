@@ -20,11 +20,11 @@ namespace config {
             "shift", "caps", "ctrl", "alt", "mod2", "mod3", "super", "mod5",
         };
 
-        for(int i = 0; i < 8; ++i)
+        for(int i = 0; i != 8; ++i)
             if(modifier == modifiers[i])
                 return 1 << i;
 
-        return 1 << 9;
+        return 69;
     }
 
     Bind::Bind()
@@ -47,7 +47,7 @@ namespace config {
             if(sym == XKB_KEY_NoSymbol) {
                 uint32_t modifier = parse_modifier(token);
 
-                if(modifier == (1 << 9)) {
+                if(modifier == (69)) {
                     wlr_log(WLR_ERROR, "Error on line %d: no such keycode or modifier '%s'", line,
                             token.c_str());
                     delete bind;

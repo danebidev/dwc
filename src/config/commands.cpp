@@ -21,7 +21,7 @@ namespace commands {
                 if(std::isalnum(c))
                     currentVar += c;
                 else {
-                    result += envs[currentVar];
+                    result += envs[currentVar] + c;
                     currentVar.clear();
                     if(c != '$')
                         inVariable = false;
@@ -97,7 +97,7 @@ namespace commands {
             value += args[i] + (i == args.size() - 1 ? "" : " ");
         }
 
-        return new SetCommand(line, args[1], ParsableContent(value));
+        return new SetCommand(line, args[0], ParsableContent(value));
     }
 
     bool SetCommand::subcommand_of(CommandType type) {
