@@ -112,11 +112,13 @@ namespace commands {
         return false;
     }
 
-    void SetCommand::execute(ConfigLoadPhase phase) {
+    bool SetCommand::execute(ConfigLoadPhase phase) {
         // Only set vars on config first load and reloads
         if(phase == ConfigLoadPhase::COMPOSITOR_START)
-            return;
+            return true;
         conf.vars[name] = content.str(conf.vars);
+
+        return true;
     }
 
     EnvCommand::EnvCommand(int line, std::string name, ParsableContent content)
@@ -141,12 +143,13 @@ namespace commands {
         return false;
     }
 
-    void EnvCommand::execute(ConfigLoadPhase phase) {
+    bool EnvCommand::execute(ConfigLoadPhase phase) {
         // Only set envs once, they don't get reloaded
         if(phase != ConfigLoadPhase::CONFIG_FIRST_LOAD)
-            return;
+            return true;
         setenv(name.c_str(), content.str(conf.vars).c_str(), true);
         conf.vars[name] = content.str(conf.vars);
+        return true;
     }
 
     ExecCommand::ExecCommand(int line, ParsableContent content)
@@ -170,10 +173,10 @@ namespace commands {
         return type == CommandType::BIND;
     }
 
-    void ExecCommand::execute(ConfigLoadPhase phase) {
+    bool ExecCommand::execute(ConfigLoadPhase phase) {
         // execs only get executed on first start
         if(phase != ConfigLoadPhase::COMPOSITOR_START && phase != ConfigLoadPhase::BIND)
-            return;
+            return true;
         int pid = fork();
         if(pid < 0) {
             wlr_log(WLR_ERROR, "fork() failed - exiting to avoid errors");
@@ -182,6 +185,7 @@ namespace commands {
 
         if(pid == 0)
             execl("/bin/sh", "/bin/sh", "-c", content.str(conf.vars).c_str(), (void*)nullptr);
+        return true;
     }
 
     ExecAlwaysCommand::ExecAlwaysCommand(int line, ParsableContent content)
@@ -205,9 +209,9 @@ namespace commands {
         return false;
     }
 
-    void ExecAlwaysCommand::execute(ConfigLoadPhase phase) {
+    bool ExecAlwaysCommand::execute(ConfigLoadPhase phase) {
         if(phase == ConfigLoadPhase::CONFIG_FIRST_LOAD)
-            return;
+            return true;
 
         int pid = fork();
         if(pid < 0) {
@@ -217,6 +221,8 @@ namespace commands {
 
         if(pid == 0)
             execl("/bin/sh", "/bin/sh", "-c", content.str(conf.vars).c_str(), (void*)nullptr);
+
+        return true;
     }
 
     OutputCommand::OutputCommand(int line, ParsableContent output_name, std::string mode,
@@ -242,8 +248,9 @@ namespace commands {
         return false;
     }
 
-    void OutputCommand::execute(ConfigLoadPhase phase) {
+    bool OutputCommand::execute(ConfigLoadPhase phase) {
         // TODO
+        return true;
     }
 
     BindCommand::BindCommand(int line, ParsableContent keybind, Command* command)
@@ -284,13 +291,14 @@ namespace commands {
         return false;
     }
 
-    void BindCommand::execute(ConfigLoadPhase phase) {
+    bool BindCommand::execute(ConfigLoadPhase phase) {
         if(phase != ConfigLoadPhase::COMPOSITOR_START && phase != ConfigLoadPhase::RELOAD)
-            return;
+            return true;
 
         config::Bind* bind = config::Bind::from_str(line, keybind.str(conf.vars));
         if(bind)
             conf.binds.push_back({ bind, command });
+        return true;
     }
 
     TerminateCommand::TerminateCommand(int line)
@@ -309,8 +317,10 @@ namespace commands {
         return type == CommandType::BIND;
     }
 
-    void TerminateCommand::execute(ConfigLoadPhase phase) {
+    bool TerminateCommand::execute(ConfigLoadPhase phase) {
         wl_display_terminate(server.display);
+        // Shouldn't even be reached
+        return false;
     }
 
     ReloadCommand::ReloadCommand(int line)
@@ -329,13 +339,15 @@ namespace commands {
         return type == CommandType::BIND;
     }
 
-    void ReloadCommand::execute(ConfigLoadPhase phase) {
+    bool ReloadCommand::execute(ConfigLoadPhase phase) {
         if(phase != ConfigLoadPhase::BIND)
-            return;
+            return true;
 
         conf.clear();
         conf.load();
         conf.execute_phase(ConfigLoadPhase::RELOAD);
+
+        return false;
     }
 }
 

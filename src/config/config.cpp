@@ -132,7 +132,8 @@ namespace config {
 
     void Config::execute_phase(ConfigLoadPhase phase) {
         for(auto& command : commands) {
-            command->execute(phase);
+            if(!command->execute(phase))
+                break;
         }
     }
 

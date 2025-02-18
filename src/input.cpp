@@ -279,7 +279,8 @@ namespace keyboard {
                 if((bind->modifiers | modifiers) == modifiers) {
                     for(int i = 0; i < nsyms; i++) {
                         if(syms[i] == bind->sym) {
-                            command->execute(ConfigLoadPhase::BIND);
+                            if(!command->execute(ConfigLoadPhase::BIND))
+                                goto end;
                             handled = true;
                         }
                     }
@@ -287,6 +288,7 @@ namespace keyboard {
             }
         }
 
+    end:
         if(!handled) {
             wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
             wlr_seat_keyboard_notify_key(server.input_manager.seat.seat, event->time_msec,

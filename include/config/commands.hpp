@@ -33,7 +33,9 @@ namespace commands {
         virtual ~Command() = default;
 
         virtual bool subcommand_of(CommandType type) = 0;
-        virtual void execute(ConfigLoadPhase phase) = 0;
+        // Returns whether the caller should continue after this function returns
+        // Mainly used in binds, so that bind execution :oesn't continue after a reload
+        virtual bool execute(ConfigLoadPhase phase) = 0;
     };
 
     struct SetCommand : Command {
@@ -44,7 +46,7 @@ namespace commands {
 
         static SetCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct EnvCommand : Command {
@@ -55,7 +57,7 @@ namespace commands {
 
         static EnvCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct ExecCommand : Command {
@@ -65,7 +67,7 @@ namespace commands {
 
         static ExecCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct ExecAlwaysCommand : Command {
@@ -75,7 +77,7 @@ namespace commands {
 
         static ExecAlwaysCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct OutputCommand : Command {
@@ -93,7 +95,7 @@ namespace commands {
 
         static OutputCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct BindCommand : Command {
@@ -105,7 +107,7 @@ namespace commands {
 
         static BindCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct TerminateCommand : Command {
@@ -113,7 +115,7 @@ namespace commands {
 
         static TerminateCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 
     struct ReloadCommand : Command {
@@ -121,7 +123,7 @@ namespace commands {
 
         static ReloadCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
-        void execute(ConfigLoadPhase phase) override;
+        bool execute(ConfigLoadPhase phase) override;
     };
 }
 
