@@ -25,5 +25,11 @@ env XDG_CURRENT_DESKTOP dwc
 # 'shift', 'caps', 'ctrl', 'alt', 'mod2', 'mod3', 'super' and 'mod5'
 # Currently the valid subcommands are 'exec', 'terminate' and 'reload'
 bind $mod+Return exec foot
-bind $mod+Escape terminate
-bind $mod+shift+r reload
+
+# Sway/i3-like subcommand blocks are also supported for all commands
+# Anything before the opening bracket will get prepended to all lines in the block
+# `command { <subcommands...> }`
+bind {
+    $mod+Escape terminate
+    $mod+shift+r reload
+}

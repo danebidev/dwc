@@ -42,6 +42,7 @@ namespace config {
         void set_config_path(std::filesystem::path path);
         void load();
         void execute_phase(ConfigLoadPhase phase);
+        void reload();
 
         std::unordered_map<std::string, std::string> vars;
         std::vector<std::pair<Bind *, commands::Command *>> binds;

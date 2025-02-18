@@ -10,8 +10,6 @@
 namespace commands {
     enum class CommandType { SET, ENV, EXEC, EXEC_ALWAYS, OUTPUT, BIND, TERMINATE, RELOAD };
 
-    struct Command;
-
     // A string that may contain variables that have to be substituted
     // Variable are set with the 'set' command, and are then used with $myVar
     // The variable name continues until a non-alphnumeric character is found
@@ -29,14 +27,11 @@ namespace commands {
     struct Command {
         int line;
         CommandType type;
-        bool can_have_block;
         bool subcommand_only;
 
-        Command(int line, CommandType type, bool can_have_block, bool subcommand_only);
+        Command(int line, CommandType type, bool subcommand_only);
         virtual ~Command() = default;
 
-        static Command* parse(int line, std::string name, std::vector<std::string> args,
-                              std::optional<std::vector<Command*>> block);
         virtual bool subcommand_of(CommandType type) = 0;
         virtual void execute(ConfigLoadPhase phase) = 0;
     };
@@ -96,8 +91,7 @@ namespace commands {
                       bool adaptive_sync);
         ~OutputCommand() override;
 
-        static OutputCommand* parse(int line, std::vector<std::string> args,
-                                    std::optional<std::vector<Command*>> block);
+        static OutputCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
         void execute(ConfigLoadPhase phase) override;
     };
@@ -166,7 +160,7 @@ namespace parsing {
         public:
         Parser(const std::string& text);
 
-        std::vector<commands::Command*> parse(bool block = false);
+        std::vector<commands::Command*> parse();
 
         private:
         std::vector<Token> tokens;
@@ -175,6 +169,8 @@ namespace parsing {
         Token consume();
         Token peek();
 
-        commands::Command* read_command();
+        std::vector<commands::Command*> read_commands();
+        std::vector<std::vector<std::string>> read_block();
     };
+
 }

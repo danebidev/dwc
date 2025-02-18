@@ -8,6 +8,47 @@
 #include "server.hpp"
 #include "wlr.hpp"
 
+commands::Command* parse_command(std::string name, int line, std::vector<std::string> args) {
+    if(name == "set")
+        return commands::SetCommand::parse(line, args);
+    else if(name == "env")
+        return commands::EnvCommand::parse(line, args);
+    else if(name == "exec")
+        return commands::ExecCommand::parse(line, args);
+    else if(name == "exec_always")
+        return commands::ExecAlwaysCommand::parse(line, args);
+    else if(name == "output")
+        return commands::OutputCommand::parse(line, args);
+    else if(name == "bind")
+        return commands::BindCommand::parse(line, args);
+    else if(name == "terminate")
+        return commands::TerminateCommand::parse(line, args);
+    else if(name == "reload")
+        return commands::ReloadCommand::parse(line, args);
+    else {
+        wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
+        return nullptr;
+    }
+}
+
+std::vector<commands::Command*> parse(int line, std::string name, std::vector<std::string> args,
+                                      std::optional<std::vector<std::vector<std::string>>> block) {
+    if(!block.has_value())
+        return { parse_command(name, line, args) };
+
+    std::vector<commands::Command*> commands;
+    for(const auto& subcommand : block.value()) {
+        // Slow af, but who cares
+        std::vector<std::string> new_args = args;
+        for(auto& arg : subcommand) {
+            new_args.push_back(arg);
+        }
+        commands.push_back(parse_command(name, ++line, new_args));
+    }
+
+    return commands;
+}
+
 namespace commands {
     std::string ParsableContent::str(std::unordered_map<std::string, std::string>& envs) {
         std::string result;
@@ -44,52 +85,13 @@ namespace commands {
     ParsableContent::ParsableContent(std::string content)
         : content(content) {}
 
-    Command::Command(int line, CommandType type, bool can_have_block, bool subcommand_only)
+    Command::Command(int line, CommandType type, bool subcommand_only)
         : line(line),
           type(type),
-          can_have_block(can_have_block),
           subcommand_only(subcommand_only) {}
 
-    Command* Command::parse(int line, std::string name, std::vector<std::string> args,
-                            std::optional<std::vector<Command*>> block) {
-        Command* command;
-
-        if(name == "set")
-            command = SetCommand::parse(line, args);
-        else if(name == "env")
-            command = EnvCommand::parse(line, args);
-        else if(name == "exec")
-            command = ExecCommand::parse(line, args);
-        else if(name == "exec_always")
-            command = ExecAlwaysCommand::parse(line, args);
-        else if(name == "output")
-            command = OutputCommand::parse(line, args, block);
-        else if(name == "bind")
-            command = BindCommand::parse(line, args);
-        else if(name == "terminate")
-            command = TerminateCommand::parse(line, args);
-        else if(name == "reload")
-            command = ReloadCommand::parse(line, args);
-        else {
-            wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
-            return nullptr;
-        }
-
-        if(!command)
-            return nullptr;
-
-        if(!command->can_have_block && block.has_value()) {
-            wlr_log(WLR_ERROR,
-                    "Error on line %d: bracket block passed to command that doesn't require it",
-                    line);
-            return nullptr;
-        }
-
-        return command;
-    }
-
     SetCommand::SetCommand(int line, std::string name, ParsableContent content)
-        : Command(line, CommandType::SET, false, false),
+        : Command(line, CommandType::SET, false),
           name(name),
           content(content) {}
 
@@ -118,7 +120,7 @@ namespace commands {
     }
 
     EnvCommand::EnvCommand(int line, std::string name, ParsableContent content)
-        : Command(line, CommandType::ENV, false, false),
+        : Command(line, CommandType::ENV, false),
           name(name),
           content(content) {}
 
@@ -148,7 +150,7 @@ namespace commands {
     }
 
     ExecCommand::ExecCommand(int line, ParsableContent content)
-        : Command(line, CommandType::EXEC, false, false),
+        : Command(line, CommandType::EXEC, false),
           content(content) {}
 
     ExecCommand* ExecCommand::parse(int line, std::vector<std::string> args) {
@@ -183,7 +185,7 @@ namespace commands {
     }
 
     ExecAlwaysCommand::ExecAlwaysCommand(int line, ParsableContent content)
-        : Command(line, CommandType::EXEC_ALWAYS, false, false),
+        : Command(line, CommandType::EXEC_ALWAYS, false),
           content(content) {}
 
     ExecAlwaysCommand* ExecAlwaysCommand::parse(int line, std::vector<std::string> args) {
@@ -219,7 +221,7 @@ namespace commands {
 
     OutputCommand::OutputCommand(int line, ParsableContent output_name, std::string mode,
                                  std::string position, bool adaptive_sync)
-        : Command(line, CommandType::OUTPUT, false, false),
+        : Command(line, CommandType::OUTPUT, false),
           output_name(output_name),
           mode(mode),
           position(position),
@@ -227,8 +229,7 @@ namespace commands {
 
     OutputCommand::~OutputCommand() {}
 
-    OutputCommand* OutputCommand::parse(int line, std::vector<std::string> args,
-                                        std::optional<std::vector<commands::Command*>> block) {
+    OutputCommand* OutputCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
             wlr_log(WLR_ERROR, "Error on line %d: missing output name", line);
             return nullptr;
@@ -246,7 +247,7 @@ namespace commands {
     }
 
     BindCommand::BindCommand(int line, ParsableContent keybind, Command* command)
-        : Command(line, CommandType::BIND, false, false),
+        : Command(line, CommandType::BIND, false),
           keybind(keybind),
           command(command) {}
 
@@ -267,7 +268,7 @@ namespace commands {
         std::string name = args[1];
         args.erase(args.begin());
         args.erase(args.begin());
-        Command* command = Command::parse(line, name, args, std::nullopt);
+        Command* command = ::parse_command(name, line, args);
 
         if(!command->subcommand_of(CommandType::BIND)) {
             wlr_log(WLR_ERROR,
@@ -293,7 +294,7 @@ namespace commands {
     }
 
     TerminateCommand::TerminateCommand(int line)
-        : Command(line, CommandType::TERMINATE, false, true) {}
+        : Command(line, CommandType::TERMINATE, true) {}
 
     TerminateCommand* TerminateCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
@@ -313,7 +314,7 @@ namespace commands {
     }
 
     ReloadCommand::ReloadCommand(int line)
-        : Command(line, CommandType::RELOAD, false, true) {}
+        : Command(line, CommandType::RELOAD, true) {}
 
     ReloadCommand* ReloadCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
@@ -423,7 +424,7 @@ namespace parsing {
         std::string result;
         while(1) {
             char c = peek();
-            if(c == '#') {
+            if(c == '#' || c == '{') {
                 while(peek() != '\n' && peek() != '\0') consume();
                 break;
             }
@@ -467,8 +468,8 @@ namespace parsing {
         tokens = lexer.get_tokens();
     }
 
-    std::vector<commands::Command*> Parser::parse(bool block) {
-        std::vector<commands::Command*> commands;
+    std::vector<commands::Command*> Parser::parse() {
+        std::vector<commands::Command*> parsed;
 
         while(1) {
             Token token = peek();
@@ -478,16 +479,15 @@ namespace parsing {
 
             if(token.type == TokenType::FILE_END)
                 break;
-            if(block && token.type == TokenType::BRACKET_CLOSE)
-                break;
 
-            commands::Command* command = read_command();
+            std::vector<commands::Command*> commands = read_commands();
 
-            if(command)
-                commands.push_back(command);
+            for(auto& command : commands) {
+                parsed.push_back(command);
+            }
         }
 
-        return commands;
+        return parsed;
     }
 
     Token Parser::consume() {
@@ -502,13 +502,13 @@ namespace parsing {
         return tokens[index];
     }
 
-    commands::Command* Parser::read_command() {
+    std::vector<commands::Command*> Parser::read_commands() {
         std::vector<std::string> args;
         Token token = consume();
 
         if(token.type != TokenType::ARG) {
             wlr_log(WLR_ERROR, "Error on line %d: expected command", token.line);
-            return nullptr;
+            return {};
         }
 
         int line = token.line;
@@ -521,13 +521,13 @@ namespace parsing {
                token.type == TokenType::FILE_END)
                 break;
             else if(token.type == TokenType::BRACKET_OPEN) {
-                std::vector<commands::Command*> block = parse(true);
+                std::vector<std::vector<std::string>> block = read_block();
                 token = consume();
                 if(token.type != TokenType::BRACKET_CLOSE) {
                     wlr_log(WLR_ERROR, "Error on line %d: expected '}'", token.line);
-                    return nullptr;
+                    return {};
                 }
-                return commands::Command::parse(line, name, args, block);
+                return ::parse(line, name, args, block);
             }
             else if(token.type == TokenType::STRING || token.type == TokenType::ARG) {
                 consume();
@@ -535,6 +535,55 @@ namespace parsing {
             }
         }
 
-        return commands::Command::parse(line, name, args, std::nullopt);
+        return ::parse(line, name, args, std::nullopt);
+    }
+
+    std::vector<std::vector<std::string>> Parser::read_block() {
+        // Consume the opening bracket
+        Token token = consume();
+        if(token.type != TokenType::BRACKET_OPEN) {
+            wlr_log(WLR_ERROR, "Error on line %d: expected '{'", token.line);
+            return {};
+        }
+
+        std::vector<std::vector<std::string>> block;
+
+        while(1) {
+            while(peek().type == TokenType::NEW_LINE) {
+                consume();
+            }
+
+            if(peek().type == TokenType::BRACKET_CLOSE || peek().type == TokenType::FILE_END) {
+                break;
+            }
+
+            std::vector<std::string> line_args;
+            while(1) {
+                token = peek();
+
+                if(token.type == TokenType::NEW_LINE || token.type == TokenType::BRACKET_CLOSE ||
+                   token.type == TokenType::FILE_END) {
+                    break;
+                }
+                else if(token.type == TokenType::STRING || token.type == TokenType::ARG) {
+                    consume();
+                    line_args.push_back(token.val.value());
+                }
+                else {
+                    wlr_log(WLR_ERROR, "Error on line %d: unexpected token in block", token.line);
+                    consume();
+                }
+            }
+
+            if(!line_args.empty()) {
+                block.push_back(line_args);
+            }
+
+            if(peek().type == TokenType::NEW_LINE) {
+                consume();
+            }
+        }
+
+        return block;
     }
 }
