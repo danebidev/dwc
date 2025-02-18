@@ -156,16 +156,16 @@ namespace output {
     void Output::arrange_layers() {
         wlr_box full_area = { 0 };
         wlr_output_effective_resolution(output, &full_area.width, &full_area.height);
-        wlr_box usable_area = full_area;
+        usable_area = full_area;
 
         for(auto &layer : { layers.shell_overlay, layers.shell_top, layers.shell_bottom,
                             layers.shell_background }) {
-            arrange_surface(&full_area, &usable_area, layer, true);
+            arrange_surface(&full_area, layer, true);
         }
 
         for(auto &layer : { layers.shell_overlay, layers.shell_top, layers.shell_bottom,
                             layers.shell_background }) {
-            arrange_surface(&full_area, &usable_area, layer, false);
+            arrange_surface(&full_area, layer, false);
         }
 
         // TODO: handle focus
@@ -250,8 +250,7 @@ namespace output {
         }
     }
 
-    void Output::arrange_surface(wlr_box *full_area, wlr_box *usable_area, wlr_scene_tree *tree,
-                                 bool exclusive) {
+    void Output::arrange_surface(wlr_box *full_area, wlr_scene_tree *tree, bool exclusive) {
         wlr_scene_node *node;
         wl_list_for_each(node, &tree->children, link) {
             layer_shell::LayerSurface *surface =
@@ -261,7 +260,7 @@ namespace output {
             if((surface->layer_surface->current.exclusive_zone > 0) != exclusive)
                 continue;
 
-            wlr_scene_layer_surface_v1_configure(surface->scene, full_area, usable_area);
+            wlr_scene_layer_surface_v1_configure(surface->scene, full_area, &usable_area);
         }
     }
 
@@ -287,4 +286,14 @@ namespace output {
                                 &server.root.output_layout->events.destroy),
           output_manager_destroy(this, output::output_manager_destroy,
                                  &server.output_manager_v1->events.destroy) {}
+
+    Output *OutputManager::output_at(double x, double y) {
+        wlr_output *output = wlr_output_layout_output_at(server.root.output_layout, x, y);
+        return static_cast<Output *>(output->data);
+    }
+
+    Output *OutputManager::focused_output() {
+        wlr_cursor *cursor = server.input_manager.seat.cursor.cursor;
+        return output_at(cursor->x, cursor->y);
+    }
 }

@@ -23,6 +23,7 @@ namespace output {
         wlr_scene_output* scene_output;
 
         wlr_box output_box;
+        wlr_box usable_area;
 
         struct {
             wlr_scene_tree* shell_background;
@@ -45,8 +46,7 @@ namespace output {
         wrapper::Listener<Output> request_state;
         wrapper::Listener<Output> destroy;
 
-        void arrange_surface(wlr_box* full_area, wlr_box* usable_area, wlr_scene_tree* tree,
-                             bool exclusive);
+        void arrange_surface(wlr_box* full_area, wlr_scene_tree* tree, bool exclusive);
     };
 
     class OutputManager {
@@ -57,6 +57,9 @@ namespace output {
         std::list<Output*> outputs;
 
         OutputManager(wl_display* display);
+
+        Output* output_at(double x, double y);
+        Output* focused_output();
 
         private:
         wrapper::Listener<OutputManager> layout_update;
