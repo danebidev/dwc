@@ -298,6 +298,7 @@ namespace commands {
     TerminateCommand* TerminateCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
             wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            return nullptr;
         }
 
         return new TerminateCommand(line);
@@ -317,6 +318,7 @@ namespace commands {
     ReloadCommand* ReloadCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
             wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            return nullptr;
         }
 
         return new ReloadCommand(line);
@@ -329,6 +331,7 @@ namespace commands {
     void ReloadCommand::execute(ConfigLoadPhase phase) {
         if(phase != ConfigLoadPhase::BIND)
             return;
+
         conf.clear();
         conf.load();
         conf.execute_phase(ConfigLoadPhase::RELOAD);
