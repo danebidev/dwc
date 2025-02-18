@@ -12,6 +12,8 @@ config::Config conf;
 extern char** environ;
 
 namespace config {
+#define INVALID_MODIFIER (1 << 8)
+
     uint32_t parse_modifier(std::string modifier) {
         std::transform(modifier.begin(), modifier.end(), modifier.begin(),
                        [](unsigned char c) { return std::tolower(c); });
@@ -24,7 +26,7 @@ namespace config {
             if(modifier == modifiers[i])
                 return 1 << i;
 
-        return 69;
+        return INVALID_MODIFIER;
     }
 
     Bind::Bind()
@@ -47,7 +49,7 @@ namespace config {
             if(sym == XKB_KEY_NoSymbol) {
                 uint32_t modifier = parse_modifier(token);
 
-                if(modifier == (69)) {
+                if(modifier == INVALID_MODIFIER) {
                     wlr_log(WLR_ERROR, "Error on line %d: no such keycode or modifier '%s'", line,
                             token.c_str());
                     delete bind;
@@ -62,6 +64,8 @@ namespace config {
 
         return bind;
     }
+
+#undef INVALID_MODIFIER
 
     OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config)
         : enabled(true),
@@ -110,17 +114,6 @@ namespace config {
         if((text = read_file()).empty())
             return;
 
-        for(auto& command : commands) {
-            delete command;
-        }
-        for(auto& bind : binds) {
-            delete bind.first;
-        }
-
-        commands.clear();
-        vars.clear();
-        binds.clear();
-
         parsing::Parser parser(text);
         commands = parser.parse();
 
@@ -144,12 +137,21 @@ namespace config {
     }
 
     Config::~Config() {
+        clear();
+    }
+
+    void Config::clear() {
         for(auto& command : commands) {
             delete command;
         }
+
         for(auto& bind : binds) {
             delete bind.first;
         }
+
+        commands.clear();
+        vars.clear();
+        binds.clear();
     }
 
     void Config::default_config_path() {

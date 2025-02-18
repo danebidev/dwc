@@ -13,17 +13,17 @@ exec xwayland-satellite
 exec swaybg -i /path/to/wallpaper.png
 
 # Set config variables with 'set'
-# These don't get passed as environment variables to child processes
+# These do not get passed as environment variables to child processes
 set mod super
 
 # Set environment variables with 'env'
 # These do get passed as environment variables to child processes
 env XDG_CURRENT_DESKTOP dwc
-env foo $mod
 
 # Bind commands to keybind combinations with 'bind'
 # Valid modifiers are (case-insensitive): 
 # 'shift', 'caps', 'ctrl', 'alt', 'mod2', 'mod3', 'super' and 'mod5'
-# Currently the only valid subcommands are 'exec' and 'terminate'
+# Currently the valid subcommands are 'exec', 'terminate' and 'reload'
 bind $mod+Return exec foot
 bind $mod+Escape terminate
+bind $mod+shift+r reload

@@ -8,7 +8,7 @@
 #include "util.hpp"
 
 namespace commands {
-    enum class CommandType { SET, ENV, EXEC, EXEC_ALWAYS, OUTPUT, BIND, TERMINATE };
+    enum class CommandType { SET, ENV, EXEC, EXEC_ALWAYS, OUTPUT, BIND, TERMINATE, RELOAD };
 
     struct Command;
 
@@ -30,8 +30,9 @@ namespace commands {
         int line;
         CommandType type;
         bool can_have_block;
+        bool subcommand_only;
 
-        Command(int line, CommandType type, bool can_have_block);
+        Command(int line, CommandType type, bool can_have_block, bool subcommand_only);
         virtual ~Command() = default;
 
         static Command* parse(int line, std::string name, std::vector<std::string> args,
@@ -117,6 +118,14 @@ namespace commands {
         TerminateCommand(int line);
 
         static TerminateCommand* parse(int line, std::vector<std::string> args);
+        bool subcommand_of(CommandType type) override;
+        void execute(ConfigLoadPhase phase) override;
+    };
+
+    struct ReloadCommand : Command {
+        ReloadCommand(int line);
+
+        static ReloadCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
         void execute(ConfigLoadPhase phase) override;
     };

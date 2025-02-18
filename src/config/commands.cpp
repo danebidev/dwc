@@ -44,10 +44,11 @@ namespace commands {
     ParsableContent::ParsableContent(std::string content)
         : content(content) {}
 
-    Command::Command(int line, CommandType type, bool can_have_block)
+    Command::Command(int line, CommandType type, bool can_have_block, bool subcommand_only)
         : line(line),
           type(type),
-          can_have_block(can_have_block) {}
+          can_have_block(can_have_block),
+          subcommand_only(subcommand_only) {}
 
     Command* Command::parse(int line, std::string name, std::vector<std::string> args,
                             std::optional<std::vector<Command*>> block) {
@@ -67,6 +68,8 @@ namespace commands {
             command = BindCommand::parse(line, args);
         else if(name == "terminate")
             command = TerminateCommand::parse(line, args);
+        else if(name == "reload")
+            command = ReloadCommand::parse(line, args);
         else {
             wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
             return nullptr;
@@ -86,7 +89,7 @@ namespace commands {
     }
 
     SetCommand::SetCommand(int line, std::string name, ParsableContent content)
-        : Command(line, CommandType::SET, false),
+        : Command(line, CommandType::SET, false, false),
           name(name),
           content(content) {}
 
@@ -115,7 +118,7 @@ namespace commands {
     }
 
     EnvCommand::EnvCommand(int line, std::string name, ParsableContent content)
-        : Command(line, CommandType::ENV, false),
+        : Command(line, CommandType::ENV, false, false),
           name(name),
           content(content) {}
 
@@ -145,7 +148,7 @@ namespace commands {
     }
 
     ExecCommand::ExecCommand(int line, ParsableContent content)
-        : Command(line, CommandType::EXEC, false),
+        : Command(line, CommandType::EXEC, false, false),
           content(content) {}
 
     ExecCommand* ExecCommand::parse(int line, std::vector<std::string> args) {
@@ -180,7 +183,7 @@ namespace commands {
     }
 
     ExecAlwaysCommand::ExecAlwaysCommand(int line, ParsableContent content)
-        : Command(line, CommandType::EXEC_ALWAYS, false),
+        : Command(line, CommandType::EXEC_ALWAYS, false, false),
           content(content) {}
 
     ExecAlwaysCommand* ExecAlwaysCommand::parse(int line, std::vector<std::string> args) {
@@ -216,7 +219,7 @@ namespace commands {
 
     OutputCommand::OutputCommand(int line, ParsableContent output_name, std::string mode,
                                  std::string position, bool adaptive_sync)
-        : Command(line, CommandType::OUTPUT, false),
+        : Command(line, CommandType::OUTPUT, false, false),
           output_name(output_name),
           mode(mode),
           position(position),
@@ -243,7 +246,7 @@ namespace commands {
     }
 
     BindCommand::BindCommand(int line, ParsableContent keybind, Command* command)
-        : Command(line, CommandType::BIND, false),
+        : Command(line, CommandType::BIND, false, false),
           keybind(keybind),
           command(command) {}
 
@@ -290,7 +293,7 @@ namespace commands {
     }
 
     TerminateCommand::TerminateCommand(int line)
-        : Command(line, CommandType::TERMINATE, false) {}
+        : Command(line, CommandType::TERMINATE, false, true) {}
 
     TerminateCommand* TerminateCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
@@ -306,6 +309,29 @@ namespace commands {
 
     void TerminateCommand::execute(ConfigLoadPhase phase) {
         wl_display_terminate(server.display);
+    }
+
+    ReloadCommand::ReloadCommand(int line)
+        : Command(line, CommandType::RELOAD, false, true) {}
+
+    ReloadCommand* ReloadCommand::parse(int line, std::vector<std::string> args) {
+        if(args.size()) {
+            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+        }
+
+        return new ReloadCommand(line);
+    }
+
+    bool ReloadCommand::subcommand_of(CommandType type) {
+        return type == CommandType::BIND;
+    }
+
+    void ReloadCommand::execute(ConfigLoadPhase phase) {
+        if(phase != ConfigLoadPhase::BIND)
+            return;
+        conf.clear();
+        conf.load();
+        conf.execute_phase(ConfigLoadPhase::RELOAD);
     }
 }
 

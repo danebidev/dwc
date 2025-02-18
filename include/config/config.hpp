@@ -50,6 +50,8 @@ namespace config {
 
         ~Config();
 
+        void clear();
+
         private:
         std::filesystem::path config_path;
 
