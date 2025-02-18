@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <wordexp.h>
 
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <sstream>
