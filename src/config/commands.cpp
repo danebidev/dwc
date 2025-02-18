@@ -72,6 +72,9 @@ namespace commands {
             return nullptr;
         }
 
+        if(!command)
+            return nullptr;
+
         if(!command->can_have_block && block.has_value()) {
             wlr_log(WLR_ERROR,
                     "Error on line %d: bracket block passed to command that doesn't require it",
@@ -262,6 +265,13 @@ namespace commands {
         args.erase(args.begin());
         args.erase(args.begin());
         Command* command = Command::parse(line, name, args, std::nullopt);
+
+        if(!command->subcommand_of(CommandType::BIND)) {
+            wlr_log(WLR_ERROR,
+                    "Error on line %d: this command can't be used as subcommand of 'bind'", line);
+            delete command;
+            return nullptr;
+        }
 
         return new BindCommand(line, ParsableContent(keybind), command);
     }
