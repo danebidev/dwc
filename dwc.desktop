@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=dwc
+Comment=Start an dwc session
+Exec=dwc
+Type=Application
+DesktopNames=dwc
