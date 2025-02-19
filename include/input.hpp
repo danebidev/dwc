@@ -39,7 +39,7 @@ namespace cursor {
         ~Cursor();
 
         // Sets the cursor image, null image unsets the image
-        void set_image(const char* image, wl_client* client);
+        void set_image(const char* image);
 
         // Resets cursor mode to passthrough
         void reset_cursor_mode();
@@ -54,9 +54,6 @@ namespace cursor {
         private:
         // Manager for the cursor image theme
         wlr_xcursor_manager* xcursor_mgr;
-
-        // The current cursor image
-        const char* image;
 
         // Currently grabbed toplevel, or null if none
         double grab_x, grab_y;

@@ -82,7 +82,7 @@ namespace cursor {
     Cursor::Cursor()
         : cursor(wlr_cursor_create()),
           cursor_mode(CursorMode::PASSTHROUGH),
-          xcursor_mgr(wlr_xcursor_manager_create(nullptr, 24)),
+          xcursor_mgr(wlr_xcursor_manager_create("default", 24)),
 
           motion(this, cursor::motion, &cursor->events.motion),
           motion_absolute(this, cursor::motion_absolute, &cursor->events.motion_absolute),
@@ -108,18 +108,14 @@ namespace cursor {
         grabbed_toplevel = nullptr;
     }
 
-    void Cursor::set_image(const char *new_image, wl_client *client) {
+    void Cursor::set_image(const char *new_image) {
         if(!(server.input_manager.seat.seat->capabilities & WL_SEAT_CAPABILITY_POINTER))
             return;
-
-        const char *current_image = image;
-        image = new_image;
 
         // Unset image if the new image is null
         if(!new_image)
             wlr_cursor_unset_image(cursor);
-        // Change image if there was no image before, or the image is different
-        else if(!current_image || strcmp(current_image, new_image))
+        else
             wlr_cursor_set_xcursor(cursor, xcursor_mgr, new_image);
     }
 
@@ -158,7 +154,7 @@ namespace cursor {
         }
 
         // Otherwise, set the default image and clear the focus
-        set_image("default", nullptr);
+        set_image("default");
         wlr_seat_pointer_clear_focus(server.input_manager.seat.seat);
     }
 
@@ -653,13 +649,13 @@ namespace seat {
         }
 
         if(!(caps & WL_SEAT_CAPABILITY_POINTER)) {
-            cursor.set_image(nullptr, nullptr);
+            cursor.set_image(nullptr);
             wlr_seat_set_capabilities(seat, caps);
         }
         else {
             wlr_seat_set_capabilities(seat, caps);
             if(!(prev_caps & WL_SEAT_CAPABILITY_POINTER)) {
-                cursor.set_image("default", nullptr);
+                cursor.set_image("default");
             }
         }
     }
