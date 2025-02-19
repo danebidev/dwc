@@ -15,7 +15,11 @@ namespace layer_shell {
                 wlr_layer_surface_v1_destroy(layer_surface);
                 return;
             }
-            layer_surface->output = server.output_manager.outputs.front()->output;
+            output::Output *output = server.output_manager.focused_output();
+            if(output)
+                layer_surface->output = output->output;
+            else
+                layer_surface->output = server.output_manager.outputs.front()->output;
         }
 
         assert(layer_surface->output);
