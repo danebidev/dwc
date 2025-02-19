@@ -241,10 +241,20 @@ namespace cursor {
         int new_height = new_bottom - new_top;
         wlr_xdg_toplevel_set_size(toplevel->toplevel, new_width, new_height);
     }
-
 }
 
 namespace keyboard {
+    bool handle_keybind(const config::Bind &bind) {
+        for(auto &[cur_bind, command] : conf.binds) {
+            if(cur_bind == bind) {
+                command->execute(ConfigLoadPhase::BIND);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // Called when a modifier key (ctrl, shift, alt, etc.) is pressed
     void modifiers(wl_listener *listener, void *data) {
         Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
@@ -261,30 +271,29 @@ namespace keyboard {
 
         // libinput keycode -> xkbcommon
         uint32_t keycode = event->keycode + 8;
-        // Get a list of keysyms based on the keymap for this keyboard
-        const xkb_keysym_t *syms;
-        int nsyms = xkb_state_key_get_syms(keyboard->keyboard->xkb_state, keycode, &syms);
 
         bool handled = false;
-        uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
-
         // This is stupidly slow to do on each keypress
         // TODO: nuke this
         if(event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-            for(auto &[bind, command] : conf.binds) {
-                if((bind->modifiers | modifiers) == modifiers) {
-                    for(int i = 0; i < nsyms; i++) {
-                        if(syms[i] == bind->sym) {
-                            if(!command->execute(ConfigLoadPhase::BIND))
-                                goto end;
-                            handled = true;
-                        }
-                    }
-                }
+            // Get pressed modifiers
+            uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
+
+            const xkb_keysym_t *syms;
+
+            // Raw keybinds
+            size_t nsyms = keyboard->keysyms_raw(keycode, &syms);
+            for(size_t i = 0; i < nsyms; i++)
+                handled |= handle_keybind(config::Bind { modifiers, syms[i] });
+
+            // Translated keybinds
+            nsyms = keyboard->keysyms_translated(keycode, &syms, &modifiers);
+            if((modifiers & WLR_MODIFIER_SHIFT) || (modifiers & WLR_MODIFIER_CAPS)) {
+                for(size_t i = 0; i < nsyms; i++)
+                    handled |= handle_keybind(config::Bind { modifiers, syms[i] });
             }
         }
 
-    end:
         if(!handled) {
             wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
             wlr_seat_keyboard_notify_key(server.input_manager.seat.seat, event->time_msec,
@@ -333,6 +342,19 @@ namespace keyboard {
         wlr_keyboard *current_keyboard = wlr_seat_get_keyboard(seat);
         if(!current_keyboard)
             wlr_seat_set_keyboard(seat, keyboard);
+    }
+
+    uint32_t Keyboard::keysyms_raw(xkb_keycode_t keycode, const xkb_keysym_t **keysyms) {
+        xkb_layout_index_t layout = xkb_state_key_get_layout(keyboard->xkb_state, keycode);
+        return xkb_keymap_key_get_syms_by_level(keyboard->keymap, keycode, layout, 0, keysyms);
+    }
+
+    uint32_t Keyboard::keysyms_translated(xkb_keycode_t keycode, const xkb_keysym_t **keysyms,
+                                          uint32_t *modifiers) {
+        xkb_mod_mask_t consumed =
+            xkb_state_key_get_consumed_mods2(keyboard->xkb_state, keycode, XKB_CONSUMED_MODE_XKB);
+        *modifiers &= ~consumed;
+        return xkb_state_key_get_syms(keyboard->xkb_state, keycode, keysyms);
     }
 }
 

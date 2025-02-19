@@ -30,18 +30,20 @@ namespace config {
         return INVALID_MODIFIER;
     }
 
-    Bind::Bind()
-        : modifiers(0) {}
+    Bind::Bind(uint32_t modifiers, xkb_keysym_t sym)
+        : modifiers(modifiers),
+          sym(sym) {}
 
-    Bind* Bind::from_str(int line, std::string str) {
-        Bind* bind = new Bind;
+    std::optional<Bind> Bind::from_str(int line, std::string str) {
+        uint32_t modifiers = 0;
+        xkb_keysym_t bind_sym = XKB_KEY_NoSymbol;
 
         std::string token;
         std::stringstream ss(str);
 
         while(std::getline(ss, token, '+')) {
             if(token == "Number") {
-                bind->sym = XKB_KEY_NoSymbol;
+                bind_sym = XKB_KEY_NoSymbol;
                 continue;
             }
 
@@ -53,17 +55,16 @@ namespace config {
                 if(modifier == INVALID_MODIFIER) {
                     wlr_log(WLR_ERROR, "Error on line %d: no such keycode or modifier '%s'", line,
                             token.c_str());
-                    delete bind;
-                    return nullptr;
+                    return std::nullopt;
                 }
 
-                bind->modifiers |= modifier;
+                modifiers |= modifier;
             }
             else
-                bind->sym = sym;
+                bind_sym = sym;
         }
 
-        return bind;
+        return Bind(modifiers, bind_sym);
     }
 
 #undef INVALID_MODIFIER
@@ -145,10 +146,6 @@ namespace config {
     void Config::clear() {
         for(auto& command : commands) {
             delete command;
-        }
-
-        for(auto& bind : binds) {
-            delete bind.first;
         }
 
         commands.clear();

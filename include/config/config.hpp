@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -14,13 +15,13 @@ namespace config {
         uint32_t modifiers;
         xkb_keysym_t sym;
 
-        Bind();
+        Bind(uint32_t modifiers, xkb_keysym_t sym);
 
-        bool operator==(const Bind other) {
+        bool operator==(const Bind &other) {
             return modifiers == other.modifiers && sym == other.sym;
         }
 
-        static Bind *from_str(int line, std::string text);
+        static std::optional<Bind> from_str(int line, std::string text);
     };
 
     class OutputConfig {
@@ -44,7 +45,7 @@ namespace config {
         void execute_phase(ConfigLoadPhase phase);
 
         std::unordered_map<std::string, std::string> vars;
-        std::vector<std::pair<Bind *, commands::Command *>> binds;
+        std::vector<std::pair<Bind, commands::Command *>> binds;
 
         std::vector<commands::Command *> commands;
 

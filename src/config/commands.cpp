@@ -295,9 +295,9 @@ namespace commands {
         if(phase != ConfigLoadPhase::COMPOSITOR_START && phase != ConfigLoadPhase::RELOAD)
             return true;
 
-        config::Bind* bind = config::Bind::from_str(line, keybind.str(conf.vars));
-        if(bind)
-            conf.binds.push_back({ bind, command });
+        std::optional<config::Bind> bind = config::Bind::from_str(line, keybind.str(conf.vars));
+        if(bind.has_value())
+            conf.binds.push_back({ bind.value(), command });
         return true;
     }
 

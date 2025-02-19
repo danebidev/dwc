@@ -3,6 +3,7 @@
 #include <list>
 #include <string>
 
+#include "config/config.hpp"
 #include "root.hpp"
 #include "wlr-wrapper.hpp"
 #include "wlr.hpp"
@@ -99,6 +100,10 @@ namespace keyboard {
         wrapper::Listener<Keyboard> modifiers;
         wrapper::Listener<Keyboard> key;
         wrapper::Listener<Keyboard> destroy;
+
+        uint32_t keysyms_raw(xkb_keycode_t keycode, const xkb_keysym_t** keysyms);
+        uint32_t keysyms_translated(xkb_keycode_t keycode, const xkb_keysym_t** keysyms,
+                                    uint32_t* modifiers);
     };
 }
 
