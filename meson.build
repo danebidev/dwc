@@ -95,3 +95,5 @@ executable(
   install: true,
   install_dir: get_option('bindir'),
 )
+
+install_data('dwc.desktop', install_dir: '//usr/share/wayland-sessions')
