@@ -30,6 +30,7 @@ extern "C" {
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>

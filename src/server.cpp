@@ -103,6 +103,7 @@ Server::Server()
     // (copy-and-paste, drag-and-drop, etc.)
     wlr_data_device_manager_create(display);
 
+    wlr_viewporter_create(display);
     wlr_ext_output_image_capture_source_manager_v1_create(display, 1);
 }
 
