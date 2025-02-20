@@ -10,6 +10,10 @@
 #include "util.hpp"
 #include "wlr.hpp"
 
+namespace output {
+    class Output;
+}
+
 namespace config {
     struct Bind {
         uint32_t modifiers;
@@ -24,17 +28,16 @@ namespace config {
         static std::optional<Bind> from_str(int line, std::string text);
     };
 
-    class OutputConfig {
-        public:
-        std::string name;
-        bool enabled;
-        int32_t width, height;
-        double x, y;
-        double refresh;
-        enum wl_output_transform transform;
-        double scale;
-        bool adaptive_sync;
+    struct OutputConfig {
+        // std::string name;
+        bool enabled;  // default: true
+        std::optional<Mode> mode;
+        Position pos;                   // default: {0, 0}
+        wl_output_transform transform;  // default: WL_OUTPUT_TRANSFORM_NORMAL (0)
+        double scale;                   // default: 1.0
+        bool adaptive_sync;             // default: false
 
+        OutputConfig(/*std::string name*/);
         OutputConfig(wlr_output_configuration_head_v1 *config);
     };
 
@@ -46,6 +49,7 @@ namespace config {
 
         std::unordered_map<std::string, std::string> vars;
         std::vector<std::pair<Bind, commands::Command *>> binds;
+        std::unordered_map<std::string, OutputConfig> output_config;
 
         std::vector<commands::Command *> commands;
 

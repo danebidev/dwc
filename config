@@ -33,3 +33,18 @@ bind {
     $mod+Escape terminate
     $mod+shift+r reload
 }
+
+# Output options can be specified both as single commands or as blocks
+# for extra clarity. So the below block is the same as this:
+# output DP-1 mode 1920x1080@60Hz
+# output DP-1 position 0 0
+# output DP-1 adaptive_sync on
+
+output DP-1 {
+    # mode <width>x<height>[@<rate>Hz]
+    mode 1920x1080@60Hz
+    # position <x> <y>
+    position 0 0
+    # adaptive_sync on|off
+    adaptive_sync off
+}

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <map>
 
 #include "layer-shell.hpp"
@@ -12,7 +13,6 @@ namespace output {
     void new_output(wl_listener *listener, void *data) {
         wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
         new Output(wlr_output);
-        server.root.arrange();
     }
 
     void layout_update(wl_listener *listener, void *data) {
@@ -37,35 +37,14 @@ namespace output {
         wlr_output_manager_v1_set_configuration(server.output_manager_v1, config);
     }
 
-    void apply_output_config(wlr_output_configuration_v1 *config, bool test) {
-        std::map<std::string, config::OutputConfig *> config_map;
-
-        struct wlr_output_configuration_head_v1 *config_head;
-        wl_list_for_each(config_head, &config->heads, link) {
-            std::string name = config_head->state.output->name;
-            config_map[name] = new config::OutputConfig(config_head);
-        }
-
-        // Apply configs
-        bool success = true;
-        for(Output *output : server.output_manager.outputs) {
-            config::OutputConfig *oc = config_map[output->output->name];
-            success &= output->apply_config(oc, test);
-        }
-
-        // Send config status
-        if(success)
-            wlr_output_configuration_v1_send_succeeded(config);
-        else
-            wlr_output_configuration_v1_send_failed(config);
-    }
-
     void output_test(wl_listener *listener, void *data) {
-        output::apply_output_config(static_cast<wlr_output_configuration_v1 *>(data), true);
+        server.output_manager.apply_output_config(static_cast<wlr_output_configuration_v1 *>(data),
+                                                  true);
     }
 
     void output_apply(wl_listener *listener, void *data) {
-        output::apply_output_config(static_cast<wlr_output_configuration_v1 *>(data), false);
+        server.output_manager.apply_output_config(static_cast<wlr_output_configuration_v1 *>(data),
+                                                  false);
     }
 
     // Called whenever an output wants to display a frame
@@ -90,6 +69,7 @@ namespace output {
             static_cast<wlr_output_event_request_state *>(data);
 
         wlr_output_commit_state(output->output, event->state);
+
         output->arrange_layers();
         output->update_position();
         server.root.arrange();
@@ -117,33 +97,39 @@ namespace output {
 
         server.output_manager.outputs.push_back(this);
 
-        // Enables the output if it's not enabled
-        wlr_output_state state;
-        wlr_output_state_init(&state);
-        wlr_output_state_set_enabled(&state, true);
+        config::OutputConfig *config = nullptr;
+        if(conf.output_config.find(output->name) != conf.output_config.end())
+            config = &conf.output_config[output->name];
 
-        // TODO: config
-        wlr_output_mode *mode = wlr_output_preferred_mode(output);
-        if(mode)
-            wlr_output_state_set_mode(&state, mode);
+        bool success = config && apply_config(config, false);
+        if(!success) {
+            wlr_log(WLR_INFO, "using fallback config for output %s", output->name);
 
-        // Applies the state
-        wlr_output_commit_state(output, &state);
-        wlr_output_state_finish(&state);
+            wlr_output_state state;
+            wlr_output_state_init(&state);
 
-        // Add the new output to the output layout
-        // auto_add arranges outputs from left-to-right in the order they appear
-        // TODO: config
-        wlr_output_layout_output *layout_output =
-            wlr_output_layout_add_auto(server.root.output_layout, output);
+            wlr_output_state_set_enabled(&state, true);
+            wlr_output_state_set_mode(&state, wlr_output_preferred_mode(output));
+
+            success = wlr_output_commit_state(output, &state);
+            wlr_output_state_finish(&state);
+
+            if(success) {
+                // Add the new output to the output layout
+                // auto_add arranges outputs from left-to-right in the order they appear
+                wlr_output_layout_output *layout_output =
+                    wlr_output_layout_add_auto(server.root.output_layout, output);
+
+                // Add output to scene output layout
+                wlr_scene_output_layout_add_output(server.scene_layout, layout_output,
+                                                   scene_output);
+            }
+        }
 
         layers.shell_background = wlr_scene_tree_create(server.root.shell_background);
         layers.shell_bottom = wlr_scene_tree_create(server.root.shell_bottom);
         layers.shell_top = wlr_scene_tree_create(server.root.shell_top);
         layers.shell_overlay = wlr_scene_tree_create(server.root.shell_overlay);
-
-        // Add output to scene output layout
-        wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
 
         arrange_layers();
         update_position();
@@ -168,13 +154,9 @@ namespace output {
                             layers.shell_background }) {
             arrange_surface(&full_area, layer, false);
         }
-
-        // TODO: handle focus
     }
 
     bool Output::apply_config(config::OutputConfig *config, bool test) {
-        wlr_output *wlr_output = output;
-
         wlr_output_state state;
         wlr_output_state_init(&state);
 
@@ -184,15 +166,17 @@ namespace output {
         if(config->enabled) {
             // set mode
             bool mode_set = false;
-            if(config->width > 0 && config->height > 0 && config->refresh > 0) {
+            if(config->mode.has_value() && config->mode->width > 0 && config->mode->height > 0 &&
+               config->mode->refresh_rate > 0) {
+                Mode &config_mode = config->mode.value();
                 // find matching mode
                 struct wlr_output_mode *mode, *best_mode = nullptr;
-                wl_list_for_each(mode, &wlr_output->modes, link) {
-                    if(mode->width == config->width && mode->height == config->height)
+                wl_list_for_each(mode, &output->modes, link) {
+                    if(mode->width == config_mode.width && mode->height == config_mode.height)
                         if(!best_mode ||
-                           (abs((int)(mode->refresh / 1000.0 - config->refresh)) < 1.5 &&
-                            abs((int)(mode->refresh / 1000.0 - config->refresh)) <
-                                abs((int)(best_mode->refresh / 1000.0 - config->refresh))))
+                           (abs((int)(mode->refresh / 1000.0 - config_mode.refresh_rate)) < 1.5 &&
+                            abs((int)(mode->refresh / 1000.0 - config_mode.refresh_rate)) <
+                                abs((int)(best_mode->refresh / 1000.0 - config_mode.refresh_rate))))
                             best_mode = mode;
                 }
 
@@ -204,8 +188,8 @@ namespace output {
 
             // set to preferred mode if not set
             if(!mode_set) {
-                wlr_output_state_set_mode(&state, wlr_output_preferred_mode(wlr_output));
-                wlr_log(WLR_INFO, "using fallback mode for output %s", config->name.c_str());
+                wlr_output_state_set_mode(&state, wlr_output_preferred_mode(output));
+                wlr_log(WLR_INFO, "using fallback mode for output %s", output->name);
             }
 
             // scale
@@ -221,14 +205,12 @@ namespace output {
 
         bool success;
         if(test)
-            success = wlr_output_test_state(wlr_output, &state);
+            success = wlr_output_test_state(output, &state);
         else {
-            success = wlr_output_commit_state(wlr_output, &state);
-            if(success) {
-                wlr_output_layout_add(server.root.output_layout, wlr_output, config->x, config->y);
-                update_position();
-                arrange_layers();
-            }
+            success = wlr_output_commit_state(output, &state);
+            if(success)
+                wlr_output_layout_add(server.root.output_layout, output, config->pos.x,
+                                      config->pos.y);
         }
 
         wlr_output_state_finish(&state);
@@ -296,5 +278,32 @@ namespace output {
     Output *OutputManager::focused_output() {
         wlr_cursor *cursor = server.input_manager.seat.cursor.cursor;
         return output_at(cursor->x, cursor->y);
+    }
+
+    void OutputManager::apply_output_config(wlr_output_configuration_v1 *config, bool test) {
+        struct wlr_output_configuration_head_v1 *config_head;
+        wl_list_for_each(config_head, &config->heads, link) {
+            conf.output_config[config_head->state.output->name] = config::OutputConfig(config_head);
+        }
+
+        // Apply configs
+        bool success = true;
+        for(Output *output : server.output_manager.outputs) {
+            if(conf.output_config.find(output->output->name) != conf.output_config.end()) {
+                config::OutputConfig *oc = &conf.output_config[output->output->name];
+                success &= output->apply_config(oc, test);
+                if(!test) {
+                    output->arrange_layers();
+                    output->update_position();
+                    server.root.arrange();
+                }
+            }
+        }
+
+        // Send config status
+        if(success)
+            wlr_output_configuration_v1_send_succeeded(config);
+        else
+            wlr_output_configuration_v1_send_failed(config);
     }
 }

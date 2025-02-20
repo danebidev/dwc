@@ -34,7 +34,7 @@ namespace commands {
 
         virtual bool subcommand_of(CommandType type) = 0;
         // Returns whether the caller should continue after this function returns
-        // Mainly used in binds, so that bind execution :oesn't continue after a reload
+        // Mainly used in binds, so that bind execution doesn't continue after a reload
         virtual bool execute(ConfigLoadPhase phase) = 0;
     };
 
@@ -81,16 +81,14 @@ namespace commands {
     };
 
     struct OutputCommand : Command {
-        // Can be '*', to represent all outputs
-        // More complex globbing like 'DP-*' is not supported
         ParsableContent output_name;
 
-        std::string mode;
-        std::string position;
-        bool adaptive_sync;
+        std::optional<Mode> mode;
+        std::optional<Position> position;
+        std::optional<bool> adaptive_sync;
 
-        OutputCommand(int line, ParsableContent output_name, std::string mode, std::string position,
-                      bool adaptive_sync);
+        OutputCommand(int line, ParsableContent output_name, std::optional<Mode> mode,
+                      std::optional<Position> position, std::optional<bool> adaptive_sync);
         ~OutputCommand() override;
 
         static OutputCommand* parse(int line, std::vector<std::string> args);

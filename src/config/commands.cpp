@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <regex>
 
 #include "config/config.hpp"
 #include "server.hpp"
@@ -225,8 +226,9 @@ namespace commands {
         return true;
     }
 
-    OutputCommand::OutputCommand(int line, ParsableContent output_name, std::string mode,
-                                 std::string position, bool adaptive_sync)
+    OutputCommand::OutputCommand(int line, ParsableContent output_name, std::optional<Mode> mode,
+                                 std::optional<Position> position,
+                                 std::optional<bool> adaptive_sync)
         : Command(line, CommandType::OUTPUT, false),
           output_name(output_name),
           mode(mode),
@@ -235,12 +237,84 @@ namespace commands {
 
     OutputCommand::~OutputCommand() {}
 
+    bool is_number(const std::string& s) {
+        return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) {
+                                 return !std::isdigit(c);
+                             }) == s.end();
+    }
+
     OutputCommand* OutputCommand::parse(int line, std::vector<std::string> args) {
-        if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "Error on line %d: missing output name", line);
+        if(args.size() <= 2) {
+            if(args.size() == 0)
+                wlr_log(WLR_ERROR, "Error on line %d: missing output name", line);
+            else if(args.size() == 1)
+                wlr_log(WLR_ERROR, "Error on line %d: missing output subcommand", line);
+            else if(args.size() == 2)
+                wlr_log(WLR_ERROR, "Error on line %d: missing argument to %s subcommand", line,
+                        args[1].c_str());
             return nullptr;
         }
-        // TODO
+
+        std::smatch m;
+
+        if(args[1] == "mode") {
+            if(args.size() > 3) {
+                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                return nullptr;
+            }
+
+            std::regex re("(\\d+)x(\\d+)(@(\\d+(\\.\\d+)?)Hz)?");
+            if(std::regex_match(args[2], m, re)) {
+                int width = stoi(m[1]);
+                int height = stoi(m[2]);
+                double refresh;
+                try {
+                    refresh = stod(m[4]);
+                }
+                catch(std::runtime_error& e) {
+                    refresh = 60;
+                }
+                Mode mode { .width = width, .height = height, .refresh_rate = refresh };
+                return new OutputCommand(line, args[0], mode, std::nullopt, std::nullopt);
+            }
+            else {
+                wlr_log(WLR_ERROR, "Error on line %d: invalid mode argument", line);
+                return nullptr;
+            }
+        }
+        else if(args[1] == "position") {
+            if(args.size() > 4) {
+                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                return nullptr;
+            }
+
+            if(is_number(args[2]) && is_number(args[3])) {
+                Position pos { .x = stoi(args[2]), .y = stoi(args[3]) };
+                return new OutputCommand(line, args[0], std::nullopt, pos, std::nullopt);
+            }
+            else {
+                wlr_log(WLR_ERROR, "Error on line %d: invalid position argument", line);
+                return nullptr;
+            }
+        }
+        else if(args[1] == "adaptive_sync") {
+            if(args.size() > 3) {
+                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                return nullptr;
+            }
+
+            if(args[2] == "on")
+                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, true);
+            else if(args[2] == "off")
+                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, false);
+            else {
+                wlr_log(WLR_ERROR, "Error on line %d: invalid adaptive_sync argument", line);
+                return nullptr;
+            }
+        }
+
+        wlr_log(WLR_ERROR, "Error on line %d: unrecognized output subcommand '%s'", line,
+                args[1].c_str());
         return nullptr;
     }
 
@@ -249,7 +323,20 @@ namespace commands {
     }
 
     bool OutputCommand::execute(ConfigLoadPhase phase) {
-        // TODO
+        if(phase != ConfigLoadPhase::CONFIG_FIRST_LOAD && phase != ConfigLoadPhase::RELOAD)
+            return true;
+
+        std::string name = output_name.str(conf.vars);
+
+        config::OutputConfig& config = conf.output_config[name];
+
+        if(mode.has_value())
+            config.mode = mode.value();
+        else if(position.has_value())
+            config.pos = position.value();
+        else if(adaptive_sync.has_value())
+            config.adaptive_sync = adaptive_sync.value();
+
         return true;
     }
 
@@ -276,6 +363,9 @@ namespace commands {
         args.erase(args.begin());
         args.erase(args.begin());
         Command* command = ::parse_command(name, line, args);
+
+        if(!command)
+            return nullptr;
 
         if(!command->subcommand_of(CommandType::BIND)) {
             wlr_log(WLR_ERROR,
@@ -495,7 +585,8 @@ namespace parsing {
             std::vector<commands::Command*> commands = read_commands();
 
             for(auto& command : commands) {
-                parsed.push_back(command);
+                if(command)
+                    parsed.push_back(command);
             }
         }
 

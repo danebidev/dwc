@@ -11,7 +11,6 @@ namespace output {
     // Called when a new output (monitor or display) becomes available
     void new_output(wl_listener* listener, void* data);
     void layout_update(wl_listener* listener, void* data);
-    void apply_output_config(wlr_output_configuration_v1* config, bool test);
 
     class Output {
         friend void frame(wl_listener*, void*);
@@ -36,7 +35,6 @@ namespace output {
 
         void update_position();
         void arrange_layers();
-
         bool apply_config(config::OutputConfig* config, bool test);
 
         wlr_scene_tree* get_scene(zwlr_layer_shell_v1_layer layer);
@@ -60,6 +58,8 @@ namespace output {
 
         Output* output_at(double x, double y);
         Output* focused_output();
+
+        void apply_output_config(wlr_output_configuration_v1* config, bool test);
 
         private:
         wrapper::Listener<OutputManager> layout_update;

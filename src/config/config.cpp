@@ -8,6 +8,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "output.hpp"
+
 config::Config conf;
 
 extern char** environ;
@@ -69,25 +71,33 @@ namespace config {
 
 #undef INVALID_MODIFIER
 
-    OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config) {
-        enabled = config->state.enabled;
+    OutputConfig::OutputConfig(/*std::string name*/)
+        : /*name(name),*/
+          enabled(true),
+          mode(std::nullopt),
+          pos({ 0, 0 }),
+          transform(WL_OUTPUT_TRANSFORM_NORMAL),
+          scale(1.0),
+          adaptive_sync(false) {}
 
-        if(config->state.mode != nullptr) {
-            struct wlr_output_mode* mode = config->state.mode;
-            width = mode->width;
-            height = mode->height;
-            refresh = mode->refresh / 1000.f;
+    OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config)
+        : /*name(config->state.output->name),*/
+          enabled(config->state.enabled),
+          pos({ config->state.x, config->state.y }),
+          transform(config->state.transform),
+          scale(config->state.scale),
+          adaptive_sync(config->state.adaptive_sync_enabled) {
+        if(config->state.mode) {
+            wlr_output_mode* s = config->state.mode;
+            mode = Mode { .width = s->width,
+                          .height = s->height,
+                          .refresh_rate = s->refresh / 1000.f };
         }
         else {
-            width = config->state.custom_mode.width;
-            height = config->state.custom_mode.height;
-            refresh = config->state.custom_mode.refresh / 1000.f;
+            auto& s = config->state.custom_mode;
+            mode =
+                Mode { .width = s.width, .height = s.height, .refresh_rate = s.refresh / 1000.f };
         }
-        x = config->state.x;
-        y = config->state.y;
-        transform = config->state.transform;
-        scale = config->state.scale;
-        adaptive_sync = config->state.adaptive_sync_enabled;
     }
 
     void Config::set_config_path(std::filesystem::path path) {
