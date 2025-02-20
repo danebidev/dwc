@@ -23,9 +23,6 @@ namespace xdg_shell {
             output = server.output_manager.outputs.front();
 
         if(output) {
-            server.root.arrange();
-            output->update_position();
-
             wlr_surface_set_preferred_buffer_scale(toplevel->toplevel->base->surface,
                                                    output->output->scale);
 

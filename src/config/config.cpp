@@ -69,16 +69,7 @@ namespace config {
 
 #undef INVALID_MODIFIER
 
-    OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config)
-        : enabled(true),
-          width(0),
-          height(0),
-          x(0.0),
-          y(0.0),
-          refresh(0.0),
-          transform(WL_OUTPUT_TRANSFORM_NORMAL),
-          scale(1.0),
-          adaptive_sync(false) {
+    OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config) {
         enabled = config->state.enabled;
 
         if(config->state.mode != nullptr) {

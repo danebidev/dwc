@@ -145,8 +145,9 @@ namespace output {
         // Add output to scene output layout
         wlr_scene_output_layout_add_output(server.scene_layout, layout_output, scene_output);
 
-        server.root.arrange();
+        arrange_layers();
         update_position();
+        server.root.arrange();
     }
 
     void Output::update_position() {
