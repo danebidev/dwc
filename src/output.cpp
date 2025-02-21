@@ -208,9 +208,13 @@ namespace output {
             success = wlr_output_test_state(output, &state);
         else {
             success = wlr_output_commit_state(output, &state);
-            if(success)
-                wlr_output_layout_add(server.root.output_layout, output, config->pos.x,
-                                      config->pos.y);
+            if(success) {
+                if(config->pos.has_value())
+                    wlr_output_layout_add(server.root.output_layout, output, config->pos->x,
+                                          config->pos->y);
+                else
+                    wlr_output_layout_add_auto(server.root.output_layout, output);
+            }
         }
 
         wlr_output_state_finish(&state);

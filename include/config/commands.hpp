@@ -83,13 +83,20 @@ namespace commands {
     struct OutputCommand : Command {
         ParsableContent output_name;
 
+        std::optional<bool> enabled;
         std::optional<Mode> mode;
         std::optional<Position> position;
+        std::optional<wl_output_transform> transform;
+        std::optional<double> scale;
         std::optional<bool> adaptive_sync;
 
-        OutputCommand(int line, ParsableContent output_name, std::optional<Mode> mode,
-                      std::optional<Position> position, std::optional<bool> adaptive_sync);
-        ~OutputCommand() override;
+        OutputCommand(int line, ParsableContent output_name,
+                      std::optional<bool> enabled = std::nullopt,
+                      std::optional<Mode> mode = std::nullopt,
+                      std::optional<Position> position = std::nullopt,
+                      std::optional<wl_output_transform> transform = std::nullopt,
+                      std::optional<double> scale = std::nullopt,
+                      std::optional<bool> adaptive_sync = std::nullopt);
 
         static OutputCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;

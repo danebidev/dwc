@@ -226,21 +226,29 @@ namespace commands {
         return true;
     }
 
-    OutputCommand::OutputCommand(int line, ParsableContent output_name, std::optional<Mode> mode,
-                                 std::optional<Position> position,
-                                 std::optional<bool> adaptive_sync)
+    OutputCommand::OutputCommand(int line, ParsableContent output_name, std::optional<bool> enabled,
+                                 std::optional<Mode> mode, std::optional<Position> position,
+                                 std::optional<wl_output_transform> transform,
+                                 std::optional<double> scale, std::optional<bool> adaptive_sync)
         : Command(line, CommandType::OUTPUT, false),
           output_name(output_name),
+          enabled(enabled),
           mode(mode),
           position(position),
+          transform(transform),
+          scale(scale),
           adaptive_sync(adaptive_sync) {}
-
-    OutputCommand::~OutputCommand() {}
 
     bool is_number(const std::string& s) {
         return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) {
                                  return !std::isdigit(c);
                              }) == s.end();
+    }
+
+    bool is_double_number(const std::string& s) {
+        char* end = nullptr;
+        double val = strtod(s.c_str(), &end);
+        return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
     }
 
     OutputCommand* OutputCommand::parse(int line, std::vector<std::string> args) {
@@ -257,6 +265,22 @@ namespace commands {
 
         std::smatch m;
 
+        if(args[1] == "enable") {
+            if(args.size() > 3) {
+                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                return nullptr;
+            }
+
+            if(args[2] == "on")
+                return new OutputCommand(line, args[0], true);
+
+            else if(args[2] == "off")
+                return new OutputCommand(line, args[0], false);
+            else {
+                wlr_log(WLR_ERROR, "Error on line %d: invalid enable argument", line);
+                return nullptr;
+            }
+        }
         if(args[1] == "mode") {
             if(args.size() > 3) {
                 wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
@@ -275,7 +299,7 @@ namespace commands {
                     refresh = 60;
                 }
                 Mode mode { .width = width, .height = height, .refresh_rate = refresh };
-                return new OutputCommand(line, args[0], mode, std::nullopt, std::nullopt);
+                return new OutputCommand(line, args[0], std::nullopt, mode);
             }
             else {
                 wlr_log(WLR_ERROR, "Error on line %d: invalid mode argument", line);
@@ -290,12 +314,53 @@ namespace commands {
 
             if(is_number(args[2]) && is_number(args[3])) {
                 Position pos { .x = stoi(args[2]), .y = stoi(args[3]) };
-                return new OutputCommand(line, args[0], std::nullopt, pos, std::nullopt);
+                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, pos);
             }
             else {
                 wlr_log(WLR_ERROR, "Error on line %d: invalid position argument", line);
                 return nullptr;
             }
+        }
+        else if(args[1] == "transform") {
+            if(args.size() > 3) {
+                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                return nullptr;
+            }
+
+            wl_output_transform transform;
+            if(args[2] == "normal")
+                transform = WL_OUTPUT_TRANSFORM_NORMAL;
+            else if(args[2] == "90")
+                transform = WL_OUTPUT_TRANSFORM_90;
+            else if(args[2] == "180")
+                transform = WL_OUTPUT_TRANSFORM_180;
+            else if(args[2] == "270")
+                transform = WL_OUTPUT_TRANSFORM_270;
+            else if(args[2] == "flipped")
+                transform = WL_OUTPUT_TRANSFORM_FLIPPED;
+            else if(args[2] == "flipped-90")
+                transform = WL_OUTPUT_TRANSFORM_FLIPPED_90;
+            else if(args[2] == "flipped-180")
+                transform = WL_OUTPUT_TRANSFORM_FLIPPED_180;
+            else if(args[2] == "flipped-270")
+                transform = WL_OUTPUT_TRANSFORM_FLIPPED_270;
+            else {
+                wlr_log(WLR_ERROR, "Error on line %d: invalid transform argument", line);
+                return nullptr;
+            }
+
+            return new OutputCommand(line, args[0], std::nullopt, std::nullopt, std::nullopt,
+                                     transform);
+        }
+        else if(args[1] == "scale") {
+            if(args.size() > 3) {
+                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                return nullptr;
+            }
+
+            if(is_double_number(args[2]))
+                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, std::nullopt,
+                                         std::nullopt, stod(args[2]));
         }
         else if(args[1] == "adaptive_sync") {
             if(args.size() > 3) {
@@ -304,9 +369,11 @@ namespace commands {
             }
 
             if(args[2] == "on")
-                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, true);
+                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, std::nullopt,
+                                         std::nullopt, std::nullopt, true);
             else if(args[2] == "off")
-                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, false);
+                return new OutputCommand(line, args[0], std::nullopt, std::nullopt, std::nullopt,
+                                         std::nullopt, std::nullopt, false);
             else {
                 wlr_log(WLR_ERROR, "Error on line %d: invalid adaptive_sync argument", line);
                 return nullptr;
@@ -327,13 +394,18 @@ namespace commands {
             return true;
 
         std::string name = output_name.str(conf.vars);
-
         config::OutputConfig& config = conf.output_config[name];
 
-        if(mode.has_value())
+        if(enabled.has_value())
+            config.enabled = enabled.value();
+        else if(mode.has_value())
             config.mode = mode.value();
         else if(position.has_value())
             config.pos = position.value();
+        else if(transform.has_value())
+            config.transform = transform.value();
+        else if(scale.has_value())
+            config.scale = scale.value();
         else if(adaptive_sync.has_value())
             config.adaptive_sync = adaptive_sync.value();
 

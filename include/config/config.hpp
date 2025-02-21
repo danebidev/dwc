@@ -32,7 +32,7 @@ namespace config {
         // std::string name;
         bool enabled;  // default: true
         std::optional<Mode> mode;
-        Position pos;                   // default: {0, 0}
+        std::optional<Position> pos;
         wl_output_transform transform;  // default: WL_OUTPUT_TRANSFORM_NORMAL (0)
         double scale;                   // default: 1.0
         bool adaptive_sync;             // default: false
