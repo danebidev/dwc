@@ -119,6 +119,24 @@ namespace xdg_shell {
 
     void xdg_popup_commit(wl_listener* listener, void* data) {
         Popup* popup = static_cast<wrapper::Listener<Popup>*>(listener)->container;
+        output::Output* output = server.output_manager.focused_output();
+
+        if(!output)
+            return;
+
+        int lx, ly;
+        wlr_scene_node_coords(&popup->scene->node.parent->node, &lx, &ly);
+
+        // the output box expressed in the coordinate system of the parent
+        // of the popup
+        struct wlr_box box = {
+            .x = output->output_box.x - lx,
+            .y = output->output_box.y - ly,
+            .width = output->output_box.width,
+            .height = output->output_box.height,
+        };
+
+        wlr_xdg_popup_unconstrain_from_box(popup->popup, &box);
 
         if(popup->popup->base->initial_commit)
             wlr_xdg_surface_schedule_configure(popup->popup->base);
