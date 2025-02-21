@@ -130,6 +130,14 @@ namespace commands {
         bool subcommand_of(CommandType type) override;
         bool execute(ConfigLoadPhase phase) override;
     };
+
+    struct KillCommand : Command {
+        KillCommand(int line);
+
+        static KillCommand* parse(int line, std::vector<std::string> args);
+        bool subcommand_of(CommandType type) override;
+        bool execute(ConfigLoadPhase phase) override;
+    };
 }
 
 namespace parsing {

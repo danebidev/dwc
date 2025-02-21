@@ -151,6 +151,8 @@ namespace seat {
         // Currently focused node
         SeatNode* focused_node;
 
+        seat::SeatNode* previous_toplevel;
+
         Seat(const char* seat_name);
 
         void focus_node(nodes::Node* node);
@@ -174,7 +176,7 @@ namespace seat {
         // Gets or creates a new seat node from the root node
         SeatNode* get_seat_node(nodes::Node* node);
 
-        void focus_surface(wlr_surface* surface);
+        void focus_surface(wlr_surface* surface, bool toplevel);
         void focus_layer(wlr_layer_surface_v1* layer);
 
         // List of devices attached to this seat
@@ -196,6 +198,8 @@ namespace seat {
         void configure_xcursor();
         // Notifies the seat that the keyboard focus has changed
         void keyboard_notify_enter(wlr_surface* surface);
+
+        void update_toplevel_activation(nodes::Node* node, bool activated);
 
         // Updates capabilities based on current seat devices
         // Should be called whenever seat devices change

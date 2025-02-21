@@ -26,6 +26,8 @@ commands::Command* parse_command(std::string name, int line, std::vector<std::st
         return commands::TerminateCommand::parse(line, args);
     else if(name == "reload")
         return commands::ReloadCommand::parse(line, args);
+    else if(name == "kill")
+        return commands::KillCommand::parse(line, args);
     else {
         wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
         return nullptr;
@@ -510,6 +512,39 @@ namespace commands {
         conf.execute_phase(ConfigLoadPhase::RELOAD);
 
         return false;
+    }
+
+    KillCommand::KillCommand(int line)
+        : Command(line, CommandType::RELOAD, true) {}
+
+    KillCommand* KillCommand::parse(int line, std::vector<std::string> args) {
+        if(args.size()) {
+            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            return nullptr;
+        }
+
+        return new KillCommand(line);
+    }
+
+    bool KillCommand::subcommand_of(CommandType type) {
+        return type == CommandType::BIND;
+    }
+
+    bool KillCommand::execute(ConfigLoadPhase phase) {
+        if(phase != ConfigLoadPhase::BIND)
+            return true;
+
+        if(server.input_manager.seat.focused_node &&
+           server.input_manager.seat.focused_node->node->type == nodes::NodeType::TOPLEVEL)
+            wlr_xdg_toplevel_send_close(
+                server.input_manager.seat.focused_node->node->val.toplevel->toplevel);
+        else if(server.input_manager.seat.previous_toplevel &&
+                server.input_manager.seat.previous_toplevel->node->val.toplevel->toplevel->base
+                    ->surface->mapped)
+            wlr_xdg_toplevel_send_close(
+                server.input_manager.seat.previous_toplevel->node->val.toplevel->toplevel);
+
+        return true;
     }
 }
 

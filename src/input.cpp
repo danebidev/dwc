@@ -367,6 +367,9 @@ namespace seat {
         bool had_focus = false;
         bool exclusivity = seat_node->node->has_exclusivity();
 
+        if(seat->previous_toplevel == seat_node)
+            seat->previous_toplevel = nullptr;
+
         std::list<SeatNode *> &stack = exclusivity ? seat->exclusivity_stack : seat->focus_stack;
         if(!stack.empty() && stack.front() == seat_node)
             had_focus = true;
@@ -455,6 +458,7 @@ namespace seat {
 
     Seat::Seat(const char *seat_name)
         : seat(wlr_seat_create(server.display, seat_name)),
+          previous_toplevel(nullptr),
           scene_tree(wlr_scene_tree_create(server.root.seat)),
           /*drag_icons(wlr_scene_tree_create(scene_tree)),*/
 
@@ -516,8 +520,10 @@ namespace seat {
         if(focused_node && focused_node->node->has_exclusivity())
             return;
 
-        if(!node)
-            focus_surface(nullptr);
+        if(!node) {
+            focus_surface(nullptr, false);
+            return;
+        }
 
         SeatNode *seat_node = get_seat_node(node);
 
@@ -534,19 +540,29 @@ namespace seat {
             return;
         }
 
-        focus_surface(node->val.toplevel->toplevel->base->surface);
+        if(node->type == nodes::NodeType::TOPLEVEL)
+            previous_toplevel = seat_node;
+
+        focus_surface(node->val.toplevel->toplevel->base->surface, true);
         focused_node = seat_node;
 
-        wlr_xdg_toplevel_set_activated(node->val.toplevel->toplevel, true);
-        wlr_scene_node_raise_to_top(&node->val.toplevel->scene_tree->node);
+        update_toplevel_activation(node, true);
     }
 
-    void Seat::focus_surface(wlr_surface *surface) {
+    void Seat::focus_surface(wlr_surface *surface, bool toplevel) {
         if(focused_node && focused_node->node->type == nodes::NodeType::TOPLEVEL) {
-            wlr_xdg_toplevel_set_activated(focused_node->node->val.toplevel->toplevel, false);
+            if(!surface || toplevel)
+                update_toplevel_activation(focused_node->node, false);
         }
 
         if(!surface) {
+            if(previous_toplevel &&
+               previous_toplevel->node->val.toplevel->toplevel->base->surface->mapped) {
+                wlr_seat_keyboard_notify_clear_focus(seat);
+                focus_node(previous_toplevel->node);
+                previous_toplevel = nullptr;
+                return;
+            }
             wlr_seat_keyboard_notify_clear_focus(seat);
             focused_node = nullptr;
             return;
@@ -557,18 +573,20 @@ namespace seat {
 
     void Seat::focus_layer(wlr_layer_surface_v1 *layer) {
         if(!layer) {
-            focus_surface(nullptr);
+            focus_surface(nullptr, false);
             return;
         }
         assert(layer->surface->mapped);
 
         if(!focused_node) {
-            focus_surface(layer->surface);
+            focus_surface(layer->surface, false);
             return;
         }
 
+        SeatNode *previous_focus = focused_node;
+
         if(focused_node->node->type != nodes::NodeType::LAYER_SURFACE)
-            focus_surface(layer->surface);
+            focus_surface(layer->surface, false);
 
         if(focused_node->node->type == nodes::NodeType::LAYER_SURFACE &&
            focused_node->node->val.layer_surface->layer_surface == layer)
@@ -579,7 +597,12 @@ namespace seat {
                focused_node->node->val.layer_surface->layer_surface->current.layer)
             return;
 
-        focus_surface(layer->surface);
+        focus_surface(layer->surface, false);
+
+        if(previous_focus && previous_focus->node->type == nodes::NodeType::TOPLEVEL)
+            update_toplevel_activation(previous_focus->node, true);
+        else if(previous_toplevel && previous_toplevel->node)
+            update_toplevel_activation(previous_toplevel->node, true);
     }
 
     SeatDevice *seat::Seat::get_device(input::InputDevice *device) {
@@ -650,6 +673,14 @@ namespace seat {
         wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keyboard->keycodes,
                                        keyboard->keyboard->num_keycodes,
                                        &keyboard->keyboard->modifiers);
+    }
+
+    void Seat::update_toplevel_activation(nodes::Node *node, bool activate) {
+        if(node && node->type == nodes::NodeType::TOPLEVEL) {
+            wlr_xdg_toplevel_set_activated(node->val.toplevel->toplevel, activate);
+            if(activate)
+                wlr_scene_node_raise_to_top(&node->val.toplevel->scene_tree->node);
+        }
     }
 
     void Seat::update_capabilities() {
