@@ -26,6 +26,7 @@ namespace xdg_shell {
         wrapper::Listener<Toplevel> request_move;
         wrapper::Listener<Toplevel> request_resize;
         wrapper::Listener<Toplevel> request_maximize;
+        wrapper::Listener<Toplevel> request_minimize;
         wrapper::Listener<Toplevel> request_fullscreen;
 
         wrapper::Listener<Toplevel> new_popup;

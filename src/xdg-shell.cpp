@@ -102,6 +102,13 @@ namespace xdg_shell {
             wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
     }
 
+    // Called when an xdg_toplevel requests to be maximized
+    void xdg_toplevel_request_minimize(wl_listener* listener, void* data) {
+        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+        if(toplevel->toplevel->base->initialized)
+            wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
+    }
+
     // Called when an xdg_toplevel requests fullscreen
     void xdg_toplevel_request_fullscreen(wl_listener* listener, void* data) {
         Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
@@ -166,6 +173,7 @@ namespace xdg_shell {
           request_move(this, xdg_toplevel_request_move, &toplevel->events.request_move),
           request_resize(this, xdg_toplevel_request_resize, &toplevel->events.request_resize),
           request_maximize(this, xdg_toplevel_request_maximize, &toplevel->events.request_maximize),
+          request_minimize(this, xdg_toplevel_request_minimize, &toplevel->events.request_minimize),
           request_fullscreen(this, xdg_toplevel_request_fullscreen,
                              &toplevel->events.request_fullscreen),
 
