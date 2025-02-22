@@ -18,6 +18,7 @@ class Server {
     // Globals
     wl_display* display;
     wlr_backend* backend;
+    wlr_session* session;
     wlr_renderer* renderer;
     wlr_allocator* allocator;
 

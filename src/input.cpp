@@ -279,21 +279,31 @@ namespace keyboard {
             // Get pressed modifiers
             uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
 
-            const xkb_keysym_t *syms;
+            const xkb_keysym_t *raw_syms, *translated_syms;
 
             // Raw keybinds
-            size_t nsyms = keyboard->keysyms_raw(keycode, &syms);
+            size_t nsyms = keyboard->keysyms_raw(keycode, &raw_syms);
             for(size_t i = 0; i < nsyms; i++)
-                handled |= handle_keybind(config::Bind { modifiers, syms[i] });
+                handled |= handle_keybind(config::Bind { modifiers, raw_syms[i] });
+            if(handled)
+                goto end;
+
+            handled |= keyboard->exec_compositor_binding(raw_syms, modifiers, nsyms);
+            if(handled)
+                goto end;
 
             // Translated keybinds
-            nsyms = keyboard->keysyms_translated(keycode, &syms, &modifiers);
+            nsyms = keyboard->keysyms_translated(keycode, &translated_syms, &modifiers);
             if((modifiers & WLR_MODIFIER_SHIFT) || (modifiers & WLR_MODIFIER_CAPS)) {
                 for(size_t i = 0; i < nsyms; i++)
-                    handled |= handle_keybind(config::Bind { modifiers, syms[i] });
+                    handled |= handle_keybind(config::Bind { modifiers, translated_syms[i] });
+                if(handled)
+                    goto end;
             }
+            handled |= keyboard->exec_compositor_binding(translated_syms, modifiers, nsyms);
         }
 
+    end:
         if(!handled) {
             wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
             wlr_seat_keyboard_notify_key(server.input_manager.seat.seat, event->time_msec,
@@ -355,6 +365,23 @@ namespace keyboard {
             xkb_state_key_get_consumed_mods2(keyboard->xkb_state, keycode, XKB_CONSUMED_MODE_XKB);
         *modifiers &= ~consumed;
         return xkb_state_key_get_syms(keyboard->xkb_state, keycode, keysyms);
+    }
+
+    bool Keyboard::exec_compositor_binding(const xkb_keysym_t *pressed_keysyms, uint32_t modifiers,
+                                           size_t keysyms_len) {
+        for(size_t i = 0; i < keysyms_len; ++i) {
+            xkb_keysym_t keysym = pressed_keysyms[i];
+
+            if(keysym >= XKB_KEY_XF86Switch_VT_1 && keysym <= XKB_KEY_XF86Switch_VT_12) {
+                if(server.session) {
+                    unsigned vt = keysym - XKB_KEY_XF86Switch_VT_1 + 1;
+                    wlr_session_change_vt(server.session, vt);
+                }
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

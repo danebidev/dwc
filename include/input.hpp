@@ -104,6 +104,8 @@ namespace keyboard {
         uint32_t keysyms_raw(xkb_keycode_t keycode, const xkb_keysym_t** keysyms);
         uint32_t keysyms_translated(xkb_keycode_t keycode, const xkb_keysym_t** keysyms,
                                     uint32_t* modifiers);
+        bool exec_compositor_binding(const xkb_keysym_t* pressed_keysyms, uint32_t modifiers,
+                                     size_t keysyms_len);
     };
 }
 

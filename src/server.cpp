@@ -32,7 +32,7 @@ Server::Server()
 
       // Backend. Abstracts input and output hardware.
       // Supports stuff like X11 windows, DRM, libinput, headless, etc.
-      backend(wlr_backend_autocreate(wl_display_get_event_loop(display), nullptr)),
+      backend(wlr_backend_autocreate(wl_display_get_event_loop(display), &session)),
 
       // Automatically chooses a wlr renderer. Can be Pixman, GLES2 or Vulkan.
       // Can be overridden by the user with the WLR_RENDERER env var
