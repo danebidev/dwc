@@ -206,8 +206,12 @@ namespace cursor {
 
         output::Output *output = server.output_manager.output_at(x, y);
         if(output->active_workspace != grabbed_toplevel->workspace) {
+            if(grabbed_toplevel->workspace->last_focused_toplevel == grabbed_toplevel)
+                grabbed_toplevel->workspace->last_focused_toplevel = nullptr;
+
             grabbed_toplevel->workspace->floating.remove(grabbed_toplevel);
             grabbed_toplevel->workspace = output->active_workspace;
+
             output->active_workspace->floating.push_back(grabbed_toplevel);
         }
     }
@@ -582,11 +586,14 @@ namespace seat {
             return;
         }
 
-        if(node->type == nodes::NodeType::TOPLEVEL)
-            previous_toplevel = seat_node;
+        previous_toplevel = seat_node;
 
         focus_surface(node->val.toplevel->toplevel->base->surface, true);
         focused_node = seat_node;
+
+        workspace::Workspace *ws = node->val.toplevel->workspace;
+        if(ws)
+            ws->last_focused_toplevel = node->val.toplevel;
 
         update_toplevel_activation(node, true);
     }

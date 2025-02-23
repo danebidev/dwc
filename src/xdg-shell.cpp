@@ -66,9 +66,16 @@ namespace xdg_shell {
         if(toplevel == server.input_manager.seat.cursor.grabbed_toplevel)
             server.input_manager.seat.cursor.reset_cursor_mode();
 
+        for(auto& ws : server.root.workspaces) {
+            if(ws.second->last_focused_toplevel == toplevel)
+                ws.second->last_focused_toplevel = nullptr;
+        }
+
         wl_signal_emit(&toplevel->node.events.node_destroy, static_cast<void*>(&toplevel->node));
         server.toplevels.remove(toplevel);
         toplevel->workspace->floating.remove(toplevel);
+        if(toplevel->workspace->last_focused_toplevel == toplevel)
+            toplevel->workspace->last_focused_toplevel = nullptr;
     }
 
     // Called when a commit gets applied to a toplevel

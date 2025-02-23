@@ -66,4 +66,6 @@ int main(int argc, char **argv) {
         wlr_log(WLR_ERROR, "Unrecoverable error. Compositor exiting.");
         return EXIT_FAILURE;
     }
+
+    fflush(stdout);
 }

@@ -6,14 +6,16 @@
 
 namespace workspace {
     Workspace::Workspace(output::Output* output)
-        : id(free_workspace_id()),
+        : last_focused_toplevel(nullptr),
+          id(free_workspace_id()),
           active(false),
           output(output) {
         server.root.workspaces[id] = this;
     }
 
     Workspace::Workspace(int id)
-        : id(id),
+        : last_focused_toplevel(nullptr),
+          id(id),
           active(false),
           output(server.output_manager.focused_output()) {
         server.root.workspaces[id] = this;
@@ -21,7 +23,8 @@ namespace workspace {
     }
 
     Workspace::Workspace()
-        : id(free_workspace_id()),
+        : last_focused_toplevel(nullptr),
+          id(free_workspace_id()),
           active(false),
           output(server.output_manager.focused_output()) {
         server.root.workspaces[id] = this;
@@ -54,6 +57,9 @@ namespace workspace {
         if(output->active_workspace) {
             output->active_workspace->active = false;
         }
+
+        if(last_focused_toplevel)
+            server.input_manager.seat.focus_node(&last_focused_toplevel->node);
 
         active = true;
         output->active_workspace = this;

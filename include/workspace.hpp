@@ -14,6 +14,7 @@ namespace workspace {
     class Workspace {
         public:
         std::list<xdg_shell::Toplevel*> floating;
+        xdg_shell::Toplevel* last_focused_toplevel;
 
         Workspace(output::Output* output);
         Workspace(int id);
