@@ -137,9 +137,9 @@ namespace cursor {
         // Check if the cursor entered a toplevel surface
         xdg_shell::Toplevel *toplevel = server.toplevel_at(cursor->x, cursor->y, surface, sx, sy);
         if(toplevel) {
-            // TODO: set cursor image
             wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
             wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
+            server.input_manager.seat.focus_node(&toplevel->node);
             return;
         }
 
@@ -150,6 +150,7 @@ namespace cursor {
             // TODO: set cursor image
             wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
             wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
+            server.input_manager.seat.focus_node(&layer_surface->node);
             return;
         }
 
