@@ -8,7 +8,19 @@
 #include "util.hpp"
 
 namespace commands {
-    enum class CommandType { SET, ENV, EXEC, EXEC_ALWAYS, OUTPUT, BIND, TERMINATE, RELOAD };
+    enum class CommandType {
+        SET,
+        ENV,
+        EXEC,
+        EXEC_ALWAYS,
+        OUTPUT,
+        BIND,
+        TERMINATE,
+        RELOAD,
+        KILL,
+        WORKSPACE,
+        DEBUG
+    };
 
     // A string that may contain variables that have to be substituted
     // Variable are set with the 'set' command, and are then used with $myVar
@@ -135,6 +147,25 @@ namespace commands {
         KillCommand(int line);
 
         static KillCommand* parse(int line, std::vector<std::string> args);
+        bool subcommand_of(CommandType type) override;
+        bool execute(ConfigLoadPhase phase) override;
+    };
+
+    struct WorkspaceCommand : Command {
+        int id;
+
+        WorkspaceCommand(int line, int id);
+
+        static WorkspaceCommand* parse(int line, std::vector<std::string> args);
+        bool subcommand_of(CommandType type) override;
+        bool execute(ConfigLoadPhase phase) override;
+    };
+
+    // Used for debugging, will have different functions with time
+    struct DebugCommand : Command {
+        DebugCommand(int line);
+
+        static DebugCommand* parse(int line, std::vector<std::string> args);
         bool subcommand_of(CommandType type) override;
         bool execute(ConfigLoadPhase phase) override;
     };

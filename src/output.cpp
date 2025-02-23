@@ -86,6 +86,7 @@ namespace output {
         : output(output),
           // Adds output to scene graph
           scene_output(wlr_scene_output_create(server.root.scene, output)),
+          active_workspace(nullptr),
 
           frame(this, output::frame, &output->events.frame),
           request_state(this, output::request_state, &output->events.request_state),
@@ -94,6 +95,11 @@ namespace output {
 
         // Configures the output to use our allocator and renderer
         wlr_output_init_render(output, server.allocator, server.renderer);
+
+        layers.shell_background = wlr_scene_tree_create(server.root.shell_background);
+        layers.shell_bottom = wlr_scene_tree_create(server.root.shell_bottom);
+        layers.shell_top = wlr_scene_tree_create(server.root.shell_top);
+        layers.shell_overlay = wlr_scene_tree_create(server.root.shell_overlay);
 
         server.output_manager.outputs.push_back(this);
 
@@ -126,14 +132,18 @@ namespace output {
             }
         }
 
-        layers.shell_background = wlr_scene_tree_create(server.root.shell_background);
-        layers.shell_bottom = wlr_scene_tree_create(server.root.shell_bottom);
-        layers.shell_top = wlr_scene_tree_create(server.root.shell_top);
-        layers.shell_overlay = wlr_scene_tree_create(server.root.shell_overlay);
-
         arrange_layers();
         update_position();
+
+        workspaces.push_back(new workspace::Workspace(this));
+        workspaces.front()->focus();
+        active_workspace = workspaces.front();
+
         server.root.arrange();
+    }
+
+    Output::~Output() {
+        for(const auto &ws : workspaces) delete ws;
     }
 
     void Output::update_position() {
@@ -235,6 +245,12 @@ namespace output {
                 wlr_log(WLR_ERROR, "invalid type? shouldn't happen");
                 exit(EXIT_FAILURE);
         }
+    }
+
+    std::pair<double, double> Output::center() {
+        double x = output_box.x + output_box.width / 2;
+        double y = output_box.y + output_box.height / 2;
+        return { x, y };
     }
 
     void Output::arrange_surface(wlr_box *full_area, wlr_scene_tree *tree, bool exclusive) {

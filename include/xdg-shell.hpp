@@ -14,8 +14,11 @@ namespace xdg_shell {
         nodes::Node node;
 
         wlr_scene_tree* scene_tree;
+        workspace::Workspace* workspace;
 
         Toplevel(wlr_xdg_toplevel* toplevel);
+
+        output::Output* output();
 
         private:
         wrapper::Listener<Toplevel> map;

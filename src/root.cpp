@@ -29,11 +29,9 @@ nodes::Root::Root(wl_display* display)
       shell_background(wlr_scene_tree_create(&scene->tree)),
       shell_bottom(wlr_scene_tree_create(&scene->tree)),
       floating(wlr_scene_tree_create(&scene->tree)),
-      toplevel_popups(wlr_scene_tree_create(&scene->tree)),
       shell_top(wlr_scene_tree_create(&scene->tree)),
       shell_overlay(wlr_scene_tree_create(&scene->tree)),
       layer_popups(wlr_scene_tree_create(&scene->tree)),
-
       seat(wlr_scene_tree_create(&scene->tree)) {
     wl_signal_init(&events.new_node);
 }

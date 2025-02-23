@@ -6,6 +6,7 @@
 #include "root.hpp"
 #include "wlr-wrapper.hpp"
 #include "wlr.hpp"
+#include "workspace.hpp"
 
 namespace output {
     // Called when a new output (monitor or display) becomes available
@@ -24,6 +25,9 @@ namespace output {
         wlr_box output_box;
         wlr_box usable_area;
 
+        std::list<workspace::Workspace*> workspaces;
+        workspace::Workspace* active_workspace;
+
         struct {
             wlr_scene_tree* shell_background;
             wlr_scene_tree* shell_bottom;
@@ -32,12 +36,14 @@ namespace output {
         } layers;
 
         Output(wlr_output* output);
+        ~Output();
 
         void update_position();
         void arrange_layers();
         bool apply_config(config::OutputConfig* config, bool test);
 
         wlr_scene_tree* get_scene(zwlr_layer_shell_v1_layer layer);
+        std::pair<double, double> center();
 
         private:
         wrapper::Listener<Output> frame;

@@ -28,6 +28,10 @@ commands::Command* parse_command(std::string name, int line, std::vector<std::st
         return commands::ReloadCommand::parse(line, args);
     else if(name == "kill")
         return commands::KillCommand::parse(line, args);
+    else if(name == "workspace")
+        return commands::WorkspaceCommand::parse(line, args);
+    else if(name == "debug")
+        return commands::DebugCommand::parse(line, args);
     else {
         wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
         return nullptr;
@@ -515,7 +519,7 @@ namespace commands {
     }
 
     KillCommand::KillCommand(int line)
-        : Command(line, CommandType::RELOAD, true) {}
+        : Command(line, CommandType::KILL, true) {}
 
     KillCommand* KillCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
@@ -543,6 +547,81 @@ namespace commands {
                     ->surface->mapped)
             wlr_xdg_toplevel_send_close(
                 server.input_manager.seat.previous_toplevel->node->val.toplevel->toplevel);
+
+        return true;
+    }
+
+    WorkspaceCommand::WorkspaceCommand(int line, int id)
+        : Command(line, CommandType::WORKSPACE, true),
+          id(id) {}
+
+    WorkspaceCommand* WorkspaceCommand::parse(int line, std::vector<std::string> args) {
+        if(args.size() > 1) {
+            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            return nullptr;
+        }
+
+        if(!is_number(args[0])) {
+            wlr_log(WLR_ERROR, "Error on line %d: workspace id is not a valid number", line);
+            return nullptr;
+        }
+
+        return new WorkspaceCommand(line, stoi(args[0]));
+    }
+
+    bool WorkspaceCommand::subcommand_of(CommandType type) {
+        return type == CommandType::BIND;
+    }
+
+    bool WorkspaceCommand::execute(ConfigLoadPhase phase) {
+        if(phase != ConfigLoadPhase::BIND)
+            return true;
+
+        workspace::focus_or_create(id);
+
+        return true;
+    }
+
+    DebugCommand::DebugCommand(int line)
+        : Command(line, CommandType::DEBUG, true) {}
+
+    DebugCommand* DebugCommand::parse(int line, std::vector<std::string> args) {
+        if(args.size()) {
+            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            return nullptr;
+        }
+
+        return new DebugCommand(line);
+    }
+
+    bool DebugCommand::subcommand_of(CommandType type) {
+        return type == CommandType::BIND;
+    }
+
+    bool DebugCommand::execute(ConfigLoadPhase phase) {
+        if(phase != ConfigLoadPhase::BIND)
+            return true;
+
+        if(wlr_backend_is_wl(server.backend)) {
+            wlr_wl_output_create(server.backend);
+            return true;
+        }
+        else if(wlr_backend_is_multi(server.backend)) {
+            bool done = false;
+            wlr_multi_for_each_backend(
+                server.backend,
+                [](wlr_backend* backend, void* data) {
+                    bool* done = static_cast<bool*>(data);
+                    if(!*done && wlr_backend_is_wl(backend)) {
+                        wlr_wl_output_create(backend);
+                        *done = true;
+                    }
+                },
+                &done);
+            return true;
+        }
+
+        wlr_log(WLR_ERROR, "no wayland backend found");
 
         return true;
     }

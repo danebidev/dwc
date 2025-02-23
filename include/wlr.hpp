@@ -13,6 +13,8 @@ extern "C" {
 #define WLR_USE_UNSTABLE 1
 #include <wlr/backend.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/wayland.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_compositor.h>

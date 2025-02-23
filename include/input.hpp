@@ -52,6 +52,8 @@ namespace cursor {
         void begin_interactive(xdg_shell::Toplevel* toplevel, cursor::CursorMode mode,
                                uint32_t edges);
 
+        void move_to_coords(double x, double y, wlr_input_device* dev);
+
         private:
         // Manager for the cursor image theme
         wlr_xcursor_manager* xcursor_mgr;

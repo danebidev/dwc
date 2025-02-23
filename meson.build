@@ -78,6 +78,7 @@ sources = [
   'src/config/commands.cpp',
   'src/util.cpp',
   'src/main.cpp',
+  'src/workspace.cpp',
   'src/server.cpp',
   'src/output.cpp',
   'src/xdg-shell.cpp',

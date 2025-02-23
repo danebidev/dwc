@@ -190,12 +190,25 @@ namespace cursor {
         }
     }
 
+    void Cursor::move_to_coords(double x, double y, wlr_input_device *dev) {
+        wlr_box box;
+        wlr_output_layout_get_box(server.root.output_layout, nullptr, &box);
+        wlr_cursor_warp_absolute(cursor, dev, x / box.width, y / box.height);
+    }
+
     void Cursor::process_cursor_move() {
         assert(grabbed_toplevel);
-        // Moves the toplevel to the new cursor
-        // position, shifting by the grab location
-        wlr_scene_node_set_position(&grabbed_toplevel->scene_tree->node, cursor->x - grab_x,
-                                    cursor->y - grab_y);
+        int x = cursor->x - grab_x;
+        int y = cursor->y - grab_y;
+
+        wlr_scene_node_set_position(&grabbed_toplevel->scene_tree->node, x, y);
+
+        output::Output *output = server.output_manager.output_at(x, y);
+        if(output->active_workspace != grabbed_toplevel->workspace) {
+            grabbed_toplevel->workspace->floating.remove(grabbed_toplevel);
+            grabbed_toplevel->workspace = output->active_workspace;
+            output->active_workspace->floating.push_back(grabbed_toplevel);
+        }
     }
 
     void Cursor::process_cursor_resize() {
@@ -273,8 +286,7 @@ namespace keyboard {
         uint32_t keycode = event->keycode + 8;
 
         bool handled = false;
-        // This is stupidly slow to do on each keypress
-        // TODO: nuke this
+
         if(event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
             // Get pressed modifiers
             uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
@@ -283,10 +295,11 @@ namespace keyboard {
 
             // Raw keybinds
             size_t nsyms = keyboard->keysyms_raw(keycode, &raw_syms);
-            for(size_t i = 0; i < nsyms; i++)
+            for(size_t i = 0; i < nsyms; i++) {
                 handled |= handle_keybind(config::Bind { modifiers, raw_syms[i] });
-            if(handled)
-                goto end;
+                if(handled)
+                    goto end;
+            }
 
             handled |= keyboard->exec_compositor_binding(raw_syms, modifiers, nsyms);
             if(handled)
@@ -295,10 +308,11 @@ namespace keyboard {
             // Translated keybinds
             nsyms = keyboard->keysyms_translated(keycode, &translated_syms, &modifiers);
             if((modifiers & WLR_MODIFIER_SHIFT) || (modifiers & WLR_MODIFIER_CAPS)) {
-                for(size_t i = 0; i < nsyms; i++)
+                for(size_t i = 0; i < nsyms; i++) {
                     handled |= handle_keybind(config::Bind { modifiers, translated_syms[i] });
-                if(handled)
-                    goto end;
+                    if(handled)
+                        goto end;
+                }
             }
             handled |= keyboard->exec_compositor_binding(translated_syms, modifiers, nsyms);
         }

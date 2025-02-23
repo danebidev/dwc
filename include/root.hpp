@@ -1,8 +1,13 @@
 #pragma once
 
 #include <list>
+#include <unordered_map>
 
 #include "wlr.hpp"
+
+namespace workspace {
+    class Workspace;
+}
 
 namespace output {
     class Output;
@@ -41,20 +46,25 @@ namespace nodes {
     };
 
     // scene layout (from top to bottom):
-    // - root
-    //   - seat stuff
-    //   - layer popups
-    //     - [output trees]
-    //   - shell_overlay
-    //     - [output trees]
-    //   - shell_top
-    //     - [output trees]
-    //   - toplevel popups
-    //   - floating
-    //   - shell_bottom
-    //     - [output trees]
-    //   - shell_background
-    //     - [output trees]
+    // root
+    //      - seat
+    //      - layer popups
+    //          - [layer surfaces popup tree]
+    //      - shell_overlay
+    //          - [outputs shell_overlay]
+    //              - [layer surfaces]
+    //      - shell_top
+    //          - [outputs shell_top]
+    //              - [layer surfaces]
+    //      - floating
+    //          - [floating windows]
+    //      - shell_bottom
+    //          - [outputs shell_bottom]
+    //              - [layer surfaces]
+    //      - shell_background
+    //          - [outputs shell_background]
+    //              - [layer surfaces]
+
     class Root {
         public:
         wlr_scene* scene;
@@ -63,11 +73,12 @@ namespace nodes {
         wlr_scene_tree* shell_background;
         wlr_scene_tree* shell_bottom;
         wlr_scene_tree* floating;
-        wlr_scene_tree* toplevel_popups;
         wlr_scene_tree* shell_top;
         wlr_scene_tree* shell_overlay;
         wlr_scene_tree* layer_popups;
         wlr_scene_tree* seat;
+
+        std::unordered_map<int, workspace::Workspace*> workspaces;
 
         struct {
             // Called with the new nodes::Node as data

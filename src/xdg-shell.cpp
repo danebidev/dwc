@@ -23,6 +23,7 @@ namespace xdg_shell {
             output = server.output_manager.outputs.front();
 
         if(output) {
+            assert(output->active_workspace);
             wlr_surface_set_preferred_buffer_scale(toplevel->toplevel->base->surface,
                                                    output->output->scale);
 
@@ -52,6 +53,9 @@ namespace xdg_shell {
 
             wlr_scene_node_set_position(&toplevel->scene_tree->node, x, y);
         }
+
+        toplevel->workspace = output->active_workspace;
+        toplevel->workspace->floating.push_back(toplevel);
     }
 
     // Called when an xdg_toplevel gets unmapped
@@ -64,6 +68,7 @@ namespace xdg_shell {
 
         wl_signal_emit(&toplevel->node.events.node_destroy, static_cast<void*>(&toplevel->node));
         server.toplevels.remove(toplevel);
+        toplevel->workspace->floating.remove(toplevel);
     }
 
     // Called when a commit gets applied to a toplevel
@@ -102,7 +107,7 @@ namespace xdg_shell {
             wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
     }
 
-    // Called when an xdg_toplevel requests to be maximized
+    // Called when an xdg_toplevel requests to be minimized
     void xdg_toplevel_request_minimize(wl_listener* listener, void* data) {
         Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
         if(toplevel->toplevel->base->initialized)
@@ -164,6 +169,7 @@ namespace xdg_shell {
         : toplevel(xdg_toplevel),
           node(this),
           scene_tree(wlr_scene_xdg_surface_create(server.root.floating, toplevel->base)),
+          workspace(nullptr),
 
           map(this, xdg_toplevel_map, &toplevel->base->surface->events.map),
           unmap(this, xdg_toplevel_unmap, &toplevel->base->surface->events.unmap),
@@ -180,6 +186,11 @@ namespace xdg_shell {
           new_popup(this, xdg_toplevel_new_popup, &toplevel->base->events.new_popup) {
         toplevel->base->data = scene_tree;
         scene_tree->node.data = this;
+    }
+
+    output::Output* Toplevel::output() {
+        return server.output_manager.output_at(toplevel->base->geometry.x,
+                                               toplevel->base->geometry.y);
     }
 
     Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent_tree)
