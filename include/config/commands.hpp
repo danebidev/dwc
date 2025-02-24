@@ -19,6 +19,7 @@ namespace commands {
         RELOAD,
         KILL,
         WORKSPACE,
+        FULLSCREEN,
         DEBUG
     };
 
@@ -161,7 +162,15 @@ namespace commands {
         bool execute(ConfigLoadPhase phase) override;
     };
 
-    // Used for debugging, will have different functions with time
+    struct FullscreenCommand : Command {
+        FullscreenCommand(int line);
+
+        static FullscreenCommand* parse(int line, std::vector<std::string> args);
+        bool subcommand_of(CommandType type) override;
+        bool execute(ConfigLoadPhase phase) override;
+    };
+
+    // Used for debugging, will have different functions over time
     struct DebugCommand : Command {
         DebugCommand(int line);
 

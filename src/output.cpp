@@ -136,8 +136,8 @@ namespace output {
         update_position();
 
         workspaces.push_back(new workspace::Workspace(this));
-        workspaces.front()->focus();
         active_workspace = workspaces.front();
+        workspaces.front()->switch_focus();
 
         server.root.arrange();
     }

@@ -30,6 +30,8 @@ commands::Command* parse_command(std::string name, int line, std::vector<std::st
         return commands::KillCommand::parse(line, args);
     else if(name == "workspace")
         return commands::WorkspaceCommand::parse(line, args);
+    else if(name == "fullscreen")
+        return commands::FullscreenCommand::parse(line, args);
     else if(name == "debug")
         return commands::DebugCommand::parse(line, args);
     else {
@@ -578,6 +580,37 @@ namespace commands {
             return true;
 
         workspace::focus_or_create(id);
+
+        return true;
+    }
+
+    FullscreenCommand::FullscreenCommand(int line)
+        : Command(line, CommandType::FULLSCREEN, true) {}
+
+    FullscreenCommand* FullscreenCommand::parse(int line, std::vector<std::string> args) {
+        if(args.size()) {
+            wlr_log(WLR_ERROR, "Error on line %d: missing exec argument", line);
+            return nullptr;
+        }
+
+        return new FullscreenCommand(line);
+    }
+
+    bool FullscreenCommand::subcommand_of(CommandType type) {
+        return type == CommandType::BIND;
+    }
+
+    bool FullscreenCommand::execute(ConfigLoadPhase phase) {
+        if(phase != ConfigLoadPhase::BIND)
+            return true;
+
+        output::Output* output = server.output_manager.focused_output();
+        if(!output)
+            return true;
+
+        assert(output->active_workspace);
+
+        /*if(output->active_workspace-*/
 
         return true;
     }

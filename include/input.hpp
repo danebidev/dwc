@@ -57,6 +57,7 @@ namespace cursor {
         private:
         // Manager for the cursor image theme
         wlr_xcursor_manager* xcursor_mgr;
+        workspace::Workspace* current_workspace;
 
         // Currently grabbed toplevel, or null if none
         double grab_x, grab_y;

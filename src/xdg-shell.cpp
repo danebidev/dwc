@@ -15,8 +15,6 @@ namespace xdg_shell {
     // Called when a surface gets mapped
     void xdg_toplevel_map(wl_listener* listener, void* data) {
         Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-        server.toplevels.push_back(toplevel);
-        wl_signal_emit(&server.root.events.new_node, static_cast<void*>(&toplevel->node));
 
         output::Output* output = server.output_manager.focused_output();
         if(!output && !server.output_manager.outputs.empty())
@@ -24,6 +22,10 @@ namespace xdg_shell {
 
         if(output) {
             assert(output->active_workspace);
+
+            toplevel->workspace = output->active_workspace;
+            toplevel->workspace->floating.push_back(toplevel);
+
             wlr_surface_set_preferred_buffer_scale(toplevel->toplevel->base->surface,
                                                    output->output->scale);
 
@@ -54,8 +56,8 @@ namespace xdg_shell {
             wlr_scene_node_set_position(&toplevel->scene_tree->node, x, y);
         }
 
-        toplevel->workspace = output->active_workspace;
-        toplevel->workspace->floating.push_back(toplevel);
+        server.toplevels.push_back(toplevel);
+        wl_signal_emit(&server.root.events.new_node, static_cast<void*>(&toplevel->node));
     }
 
     // Called when an xdg_toplevel gets unmapped
@@ -67,15 +69,15 @@ namespace xdg_shell {
             server.input_manager.seat.cursor.reset_cursor_mode();
 
         for(auto& ws : server.root.workspaces) {
-            if(ws.second->last_focused_toplevel == toplevel)
-                ws.second->last_focused_toplevel = nullptr;
+            if(ws.second->focused_toplevel == toplevel)
+                ws.second->focused_toplevel = nullptr;
         }
 
         wl_signal_emit(&toplevel->node.events.node_destroy, static_cast<void*>(&toplevel->node));
         server.toplevels.remove(toplevel);
         toplevel->workspace->floating.remove(toplevel);
-        if(toplevel->workspace->last_focused_toplevel == toplevel)
-            toplevel->workspace->last_focused_toplevel = nullptr;
+        if(toplevel->workspace->focused_toplevel == toplevel)
+            toplevel->workspace->focused_toplevel = nullptr;
     }
 
     // Called when a commit gets applied to a toplevel

@@ -83,6 +83,7 @@ namespace cursor {
         : cursor(wlr_cursor_create()),
           cursor_mode(CursorMode::PASSTHROUGH),
           xcursor_mgr(wlr_xcursor_manager_create("default", 24)),
+          current_workspace(nullptr),
 
           motion(this, cursor::motion, &cursor->events.motion),
           motion_absolute(this, cursor::motion_absolute, &cursor->events.motion_absolute),
@@ -120,6 +121,14 @@ namespace cursor {
     }
 
     void Cursor::process_motion(uint32_t time) {
+        // Handle workspace focus
+        workspace::Workspace *ws = server.output_manager.focused_output()->active_workspace;
+        assert(ws);
+        if(!current_workspace || current_workspace != ws) {
+            current_workspace = ws;
+            ws->focus();
+        }
+
         // If the cursor mode is not passthrough, consume the motion
         if(cursor_mode == cursor::CursorMode::MOVE) {
             process_cursor_move();
@@ -206,8 +215,8 @@ namespace cursor {
 
         output::Output *output = server.output_manager.output_at(x, y);
         if(output->active_workspace != grabbed_toplevel->workspace) {
-            if(grabbed_toplevel->workspace->last_focused_toplevel == grabbed_toplevel)
-                grabbed_toplevel->workspace->last_focused_toplevel = nullptr;
+            if(grabbed_toplevel->workspace->focused_toplevel == grabbed_toplevel)
+                grabbed_toplevel->workspace->focused_toplevel = nullptr;
 
             grabbed_toplevel->workspace->floating.remove(grabbed_toplevel);
             grabbed_toplevel->workspace = output->active_workspace;
@@ -593,7 +602,7 @@ namespace seat {
 
         workspace::Workspace *ws = node->val.toplevel->workspace;
         if(ws)
-            ws->last_focused_toplevel = node->val.toplevel;
+            ws->focused_toplevel = node->val.toplevel;
 
         update_toplevel_activation(node, true);
     }
