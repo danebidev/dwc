@@ -13,6 +13,7 @@ namespace output {
 namespace workspace {
     class Workspace {
         public:
+        output::Output* output;
         std::list<xdg_shell::Toplevel*> floating;
         xdg_shell::Toplevel* focused_toplevel;
         bool fullscreen;
@@ -32,7 +33,6 @@ namespace workspace {
         private:
         int id;
         bool active;
-        output::Output* output;
     };
 
     Workspace* focus_or_create(int id);

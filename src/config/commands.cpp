@@ -604,13 +604,9 @@ namespace commands {
         if(phase != ConfigLoadPhase::BIND)
             return true;
 
-        output::Output* output = server.output_manager.focused_output();
-        if(!output)
-            return true;
-
-        assert(output->active_workspace);
-
-        /*if(output->active_workspace-*/
+        if(server.input_manager.seat.focused_node &&
+           server.input_manager.seat.focused_node->node->type == nodes::NodeType::TOPLEVEL)
+            server.input_manager.seat.focused_node->node->val.toplevel->fullscreen();
 
         return true;
     }

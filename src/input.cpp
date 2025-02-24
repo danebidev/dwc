@@ -214,7 +214,7 @@ namespace cursor {
         wlr_scene_node_set_position(&grabbed_toplevel->scene_tree->node, x, y);
 
         output::Output *output = server.output_manager.output_at(x, y);
-        if(output->active_workspace != grabbed_toplevel->workspace) {
+        if(output && output->active_workspace != grabbed_toplevel->workspace) {
             if(grabbed_toplevel->workspace->focused_toplevel == grabbed_toplevel)
                 grabbed_toplevel->workspace->focused_toplevel = nullptr;
 

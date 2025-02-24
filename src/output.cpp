@@ -292,6 +292,8 @@ namespace output {
 
     Output *OutputManager::output_at(double x, double y) {
         wlr_output *output = wlr_output_layout_output_at(server.root.output_layout, x, y);
+        if(!output)
+            return nullptr;
         return static_cast<Output *>(output->data);
     }
 
