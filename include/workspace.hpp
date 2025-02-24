@@ -15,7 +15,7 @@ namespace workspace {
         public:
         std::list<xdg_shell::Toplevel*> floating;
         xdg_shell::Toplevel* focused_toplevel;
-        xdg_shell::Toplevel* fullscreen;
+        bool fullscreen;
 
         Workspace(output::Output* output);
         Workspace(int id);

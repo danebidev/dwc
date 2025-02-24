@@ -48,6 +48,7 @@ namespace nodes {
     // scene layout (from top to bottom):
     // root
     //      - seat
+    //      - fullscreen
     //      - layer popups
     //          - [layer surfaces popup tree]
     //      - shell_overlay
@@ -76,6 +77,7 @@ namespace nodes {
         wlr_scene_tree* shell_top;
         wlr_scene_tree* shell_overlay;
         wlr_scene_tree* layer_popups;
+        wlr_scene_tree* fullscreen;
         wlr_scene_tree* seat;
 
         std::unordered_map<int, workspace::Workspace*> workspaces;

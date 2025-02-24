@@ -32,6 +32,7 @@ nodes::Root::Root(wl_display* display)
       shell_top(wlr_scene_tree_create(&scene->tree)),
       shell_overlay(wlr_scene_tree_create(&scene->tree)),
       layer_popups(wlr_scene_tree_create(&scene->tree)),
+      fullscreen(wlr_scene_tree_create(&scene->tree)),
       seat(wlr_scene_tree_create(&scene->tree)) {
     wl_signal_init(&events.new_node);
 }

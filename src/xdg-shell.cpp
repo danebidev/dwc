@@ -112,6 +112,8 @@ namespace xdg_shell {
     // Called when an xdg_toplevel requests to be maximized
     void xdg_toplevel_request_maximize(wl_listener* listener, void* data) {
         Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+        toplevel->fullscreen();
+
         if(toplevel->toplevel->base->initialized)
             wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
     }
@@ -119,6 +121,8 @@ namespace xdg_shell {
     // Called when an xdg_toplevel requests to be minimized
     void xdg_toplevel_request_minimize(wl_listener* listener, void* data) {
         Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+        toplevel->fullscreen();
+
         if(toplevel->toplevel->base->initialized)
             wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
     }
@@ -126,6 +130,8 @@ namespace xdg_shell {
     // Called when an xdg_toplevel requests fullscreen
     void xdg_toplevel_request_fullscreen(wl_listener* listener, void* data) {
         Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+        toplevel->fullscreen();
+
         if(toplevel->toplevel->base->initialized)
             wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
     }
@@ -198,8 +204,35 @@ namespace xdg_shell {
     }
 
     output::Output* Toplevel::output() {
-        return server.output_manager.output_at(toplevel->base->geometry.x,
-                                               toplevel->base->geometry.y);
+        return server.output_manager.output_at(scene_tree->node.x, scene_tree->node.y);
+    }
+
+    void Toplevel::fullscreen() {
+        // Unfullscreen
+        if(workspace->focused_toplevel == this && workspace->fullscreen) {
+            wlr_xdg_toplevel_set_fullscreen(toplevel, false);
+            wlr_scene_node_reparent(&scene_tree->node, server.root.floating);
+
+            wlr_xdg_toplevel_set_size(toplevel, saved_geometry.width, saved_geometry.height);
+            wlr_scene_node_set_position(&scene_tree->node, saved_geometry.x, saved_geometry.y);
+        }
+        // Fullscreen
+        else {
+            // Unfullscreen the previous fullscreened toplevel
+            if(workspace->focused_toplevel && workspace->fullscreen)
+                workspace->focused_toplevel->fullscreen();
+            saved_geometry = toplevel->base->geometry;
+
+            wlr_scene_node_reparent(&scene_tree->node, server.root.fullscreen);
+            wlr_xdg_toplevel_set_fullscreen(toplevel, true);
+
+            output::Output* out = output();
+            wlr_xdg_toplevel_set_size(toplevel, out->output_box.width, out->output_box.height);
+            wlr_scene_node_raise_to_top(&scene_tree->node);
+            wlr_scene_node_set_position(&scene_tree->node, out->output_box.x, out->output_box.y);
+        }
+
+        workspace->focus();
     }
 
     Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent_tree)

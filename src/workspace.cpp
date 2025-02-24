@@ -19,7 +19,7 @@ namespace workspace {
 
     Workspace::Workspace(output::Output* output)
         : focused_toplevel(nullptr),
-          fullscreen(nullptr),
+          fullscreen(false),
           id(free_workspace_id()),
           active(false),
           output(output) {
@@ -28,7 +28,7 @@ namespace workspace {
 
     Workspace::Workspace(int id)
         : focused_toplevel(nullptr),
-          fullscreen(nullptr),
+          fullscreen(false),
           id(id),
           active(false),
           output(server.output_manager.focused_output()) {
@@ -38,7 +38,7 @@ namespace workspace {
 
     Workspace::Workspace()
         : focused_toplevel(nullptr),
-          fullscreen(nullptr),
+          fullscreen(false),
           id(free_workspace_id()),
           active(false),
           output(server.output_manager.focused_output()) {

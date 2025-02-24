@@ -19,8 +19,13 @@ namespace xdg_shell {
         Toplevel(wlr_xdg_toplevel* toplevel);
 
         output::Output* output();
+        // Toggles fullscreen status
+        void fullscreen();
 
         private:
+        // To restore the original geometry on exit fullscreen
+        wlr_box saved_geometry;
+
         wrapper::Listener<Toplevel> map;
         wrapper::Listener<Toplevel> unmap;
         wrapper::Listener<Toplevel> commit;
