@@ -221,21 +221,25 @@ namespace xdg_shell {
             saved_geometry.x = scene_tree->node.x;
             saved_geometry.y = scene_tree->node.y;
 
-            output::Output* out = workspace->output;
-            wlr_scene_node_set_position(&scene_tree->node, out->output_box.x, out->output_box.y);
-            wlr_xdg_toplevel_set_size(toplevel, out->output_box.width, out->output_box.height);
-
-            wlr_scene_node_raise_to_top(&scene_tree->node);
-            wlr_scene_node_reparent(&scene_tree->node, server.root.fullscreen);
-            wlr_xdg_toplevel_set_fullscreen(toplevel, true);
-
-            workspace->focused_toplevel = this;
-            workspace->fullscreen = true;
+            update_fullscreen();
         }
 
         wlr_xdg_surface_schedule_configure(toplevel->base);
         workspace->focus();
         server.root.arrange();
+    }
+
+    void Toplevel::update_fullscreen() {
+        output::Output* output = workspace->output;
+        wlr_scene_node_set_position(&scene_tree->node, output->output_box.x, output->output_box.y);
+        wlr_xdg_toplevel_set_size(toplevel, output->output_box.width, output->output_box.height);
+
+        wlr_scene_node_raise_to_top(&scene_tree->node);
+        wlr_scene_node_reparent(&scene_tree->node, server.root.fullscreen);
+        wlr_xdg_toplevel_set_fullscreen(toplevel, true);
+
+        workspace->focused_toplevel = this;
+        workspace->fullscreen = true;
     }
 
     Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent_tree)

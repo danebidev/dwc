@@ -18,30 +18,33 @@ namespace workspace {
     }
 
     Workspace::Workspace(output::Output* output)
-        : focused_toplevel(nullptr),
+        : output(output),
+          fs_scene(wlr_scene_tree_create(server.root.fullscreen)),
+          focused_toplevel(nullptr),
           fullscreen(false),
           id(free_workspace_id()),
-          active(false),
-          output(output) {
+          active(false) {
         server.root.workspaces[id] = this;
     }
 
     Workspace::Workspace(int id)
-        : focused_toplevel(nullptr),
+        : output(server.output_manager.focused_output()),
+          fs_scene(wlr_scene_tree_create(server.root.fullscreen)),
+          focused_toplevel(nullptr),
           fullscreen(false),
           id(id),
-          active(false),
-          output(server.output_manager.focused_output()) {
+          active(false) {
         server.root.workspaces[id] = this;
         output->workspaces.push_back(this);
     }
 
     Workspace::Workspace()
-        : focused_toplevel(nullptr),
+        : output(server.output_manager.focused_output()),
+          fs_scene(wlr_scene_tree_create(server.root.fullscreen)),
+          focused_toplevel(nullptr),
           fullscreen(false),
           id(free_workspace_id()),
-          active(false),
-          output(server.output_manager.focused_output()) {
+          active(false) {
         server.root.workspaces[id] = this;
         output->workspaces.push_back(this);
     }
@@ -50,16 +53,21 @@ namespace workspace {
         if(output == server.output_manager.focused_output() && active)
             return;
 
+        // On workspace switch, move the cursor to the center of the output
         std::pair<double, double> center = output->center();
         server.input_manager.seat.cursor.move_to_coords(center.first, center.second, nullptr);
 
         assert(output->active_workspace);
 
+        // Disable old workspace
         for(auto& toplevel : output->active_workspace->floating)
             wlr_scene_node_set_enabled(&toplevel->scene_tree->node, false);
+        wlr_scene_node_set_enabled(&output->active_workspace->fs_scene->node, false);
 
+        // Enable new workspace
         for(auto& toplevel : floating)
             wlr_scene_node_set_enabled(&toplevel->scene_tree->node, true);
+        wlr_scene_node_set_enabled(&output->active_workspace->fs_scene->node, true);
 
         output->active_workspace->active = false;
 

@@ -73,6 +73,11 @@ namespace output {
         output->arrange_layers();
         output->update_position();
         server.root.arrange();
+
+        for(auto &ws : output->workspaces) {
+            if(ws->fullscreen)
+                ws->focused_toplevel->update_fullscreen();
+        }
     }
 
     // Called when an output is destroyed

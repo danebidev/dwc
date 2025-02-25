@@ -15,6 +15,8 @@ namespace workspace {
         public:
         output::Output* output;
         std::list<xdg_shell::Toplevel*> floating;
+        wlr_scene_tree* fs_scene;
+
         xdg_shell::Toplevel* focused_toplevel;
         bool fullscreen;
 

@@ -49,6 +49,7 @@ namespace nodes {
     // root
     //      - seat
     //      - fullscreen
+    //          - [workspaces fullscreen tree]
     //      - layer popups
     //          - [layer surfaces popup tree]
     //      - shell_overlay

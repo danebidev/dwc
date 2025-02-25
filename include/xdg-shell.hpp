@@ -21,6 +21,8 @@ namespace xdg_shell {
         output::Output* output();
         // Toggles fullscreen status
         void fullscreen();
+        // Sets size and position of a fullscreened toplevel
+        void update_fullscreen();
 
         private:
         // To restore the original geometry on exit fullscreen
