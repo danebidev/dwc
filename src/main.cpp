@@ -6,9 +6,7 @@
 #include "config/config.hpp"
 #include "server.hpp"
 
-extern "C" {
 #include <getopt.h>
-}
 
 #include <wlr.hpp>
 

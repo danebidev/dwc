@@ -71,9 +71,8 @@ namespace config {
 
 #undef INVALID_MODIFIER
 
-    OutputConfig::OutputConfig(/*std::string name*/)
-        : /*name(name),*/
-          enabled(true),
+    OutputConfig::OutputConfig()
+        : enabled(true),
           mode(std::nullopt),
           pos({ 0, 0 }),
           transform(WL_OUTPUT_TRANSFORM_NORMAL),
@@ -81,8 +80,7 @@ namespace config {
           adaptive_sync(false) {}
 
     OutputConfig::OutputConfig(wlr_output_configuration_head_v1* config)
-        : /*name(config->state.output->name),*/
-          enabled(config->state.enabled),
+        : enabled(config->state.enabled),
           pos({ config->state.x, config->state.y }),
           transform(config->state.transform),
           scale(config->state.scale),

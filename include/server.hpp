@@ -10,9 +10,9 @@
 #include "xdg-shell.hpp"
 
 class Server {
-    friend void backend_destroy(wl_listener*, void*);
-    friend void xdg_shell_destroy(wl_listener*, void*);
-    friend void layer_shell_destroy(wl_listener*, void*);
+    void backend_destroy(wl_listener*, void*);
+    void xdg_shell_destroy(wl_listener*, void*);
+    void layer_shell_destroy(wl_listener*, void*);
 
     public:
     // Globals
@@ -52,18 +52,14 @@ class Server {
                                                 double& sx, double& sy);
 
     private:
-    template <typename T>
-    T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy);
-
-    // Listeners
-    wrapper::Listener<Server> new_output;
-    wrapper::Listener<Server> new_xdg_toplevel;
-    wrapper::Listener<Server> new_layer_shell_surface;
+    wrapper::Listener new_output;
+    wrapper::Listener new_xdg_toplevel;
+    wrapper::Listener new_layer_shell_surface;
 
     // Cleanup listeners
-    wrapper::Listener<Server> backend_destroy;
-    wrapper::Listener<Server> xdg_shell_destroy;
-    wrapper::Listener<Server> layer_shell_destroy;
+    wrapper::Listener backend_destroy_list;
+    wrapper::Listener xdg_shell_destroy_list;
+    wrapper::Listener layer_shell_destroy_list;
 };
 
 extern Server server;

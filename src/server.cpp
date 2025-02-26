@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <functional>
 #include <stdexcept>
 
 #include "layer-shell.hpp"
@@ -11,18 +12,18 @@
 Server server;
 
 void backend_destroy(wl_listener* listener, void* data) {
-    server.new_output.free();
-    server.backend_destroy.free();
+    server.listeners.new_output.free();
+    server.listeners.backend_destroy.free();
 }
 
 void xdg_shell_destroy(wl_listener* listener, void* data) {
-    server.new_xdg_toplevel.free();
-    server.xdg_shell_destroy.free();
+    server.listeners.new_xdg_toplevel.free();
+    server.listeners.xdg_shell_destroy.free();
 }
 
 void layer_shell_destroy(wl_listener* listener, void* data) {
-    server.new_layer_shell_surface.free();
-    server.layer_shell_destroy.free();
+    server.listeners.new_layer_shell_surface.free();
+    server.listeners.layer_shell_destroy.free();
 }
 
 Server::Server()
@@ -62,14 +63,14 @@ Server::Server()
       output_manager(display),
 
       // Listeners
-      new_output(this, output::new_output, &backend->events.new_output),
+      new_output(this, &backend->events.new_output, output::new_output),
       new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
       new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
 
       // Cleanup listeners
-      backend_destroy(this, ::backend_destroy, &backend->events.destroy),
-      xdg_shell_destroy(this, ::xdg_shell_destroy, &xdg_shell->events.destroy),
-      layer_shell_destroy(this, ::layer_shell_destroy, &layer_shell->events.destroy) {
+      backend_destroy_list(this, ::backend_destroy, &backend->events.destroy),
+      xdg_shell_destroy_list(this, ::xdg_shell_destroy, &xdg_shell->events.destroy),
+      layer_shell_destroy_list(this, ::layer_shell_destroy, &layer_shell->events.destroy) {
     if(!backend)
         throw std::runtime_error("failed to create wlr_backend");
 
@@ -141,8 +142,8 @@ void Server::start(char* startup_cmd) {
 }
 
 template <typename T>
-T* Server::surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy) {
-    wlr_scene_node* node = wlr_scene_node_at(&root.scene->tree.node, lx, ly, &sx, &sy);
+T* surface_at(double lx, double ly, wlr_surface*& surface, double& sx, double& sy) {
+    wlr_scene_node* node = wlr_scene_node_at(&server.root.scene->tree.node, lx, ly, &sx, &sy);
     if(!node || node->type != WLR_SCENE_NODE_BUFFER)
         return nullptr;
 
@@ -165,10 +166,10 @@ T* Server::surface_at(double lx, double ly, wlr_surface*& surface, double& sx, d
 }
 
 // Wrapper functions around surface_at
-// Necessary to force the instatiation of all templates we need
 xdg_shell::Toplevel* Server::toplevel_at(double lx, double ly, wlr_surface*& surface, double& sx,
                                          double& sy) {
     xdg_shell::Toplevel* toplevel = surface_at<xdg_shell::Toplevel>(lx, ly, surface, sx, sy);
+    // Comparing against the role string is kinda hacky, but I couldn't find a better way
     if(surface && surface->mapped && strcmp(surface->role->name, "zwlr_layer_surface_v1") != 0)
         return toplevel;
     else

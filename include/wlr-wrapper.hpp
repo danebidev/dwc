@@ -2,34 +2,34 @@
 
 #include <wayland-server-core.h>
 
+#include <functional>
+
 #include "wlr.hpp"
 
 namespace wrapper {
+    // This whole thing is hacky af
     template <typename Container>
-    class Listener : public wl_listener {
-        using Callback = void(wl_listener*, void*);
+    struct Listener {
+        // Has to remaint first
+        wl_listener listener;
+
+        using Callback = std::function<void(Container*, void*)>;
+
+        template <typename T>
+        friend void handle(wl_listener* listener, void* data);
 
         public:
-        Listener(Container* cont, Callback cb, wl_signal* signal)
-            : freed(false) {
-            container = cont;
-            notify = cb;
-            wl_signal_add(signal, this);
-        }
+        Listener(Container* container, wl_signal* signal, const Callback& callback);
+        ~Listener();
 
-        ~Listener() { free(); }
-
-        // Needed because listeners sometimes have to be deleted manually
-        void free() {
-            if(!freed) {
-                wl_list_remove(&link);
-                freed = true;
-            }
-        }
-
-        Container* container;
+        void init(Container* cont, wl_signal* signal, const Callback& cb);
+        void free();
 
         private:
-        bool freed;
+        bool connected();
+        void emit(void* data);
+
+        Container* container;
+        Callback callback;
     };
 }

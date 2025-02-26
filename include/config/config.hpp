@@ -29,7 +29,6 @@ namespace config {
     };
 
     struct OutputConfig {
-        // std::string name;
         bool enabled;  // default: true
         std::optional<Mode> mode;
         std::optional<Position> pos;
@@ -37,7 +36,7 @@ namespace config {
         double scale;                   // default: 1.0
         bool adaptive_sync;             // default: false
 
-        OutputConfig(/*std::string name*/);
+        OutputConfig();
         OutputConfig(wlr_output_configuration_head_v1 *config);
     };
 
