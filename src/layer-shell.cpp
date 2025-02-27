@@ -34,6 +34,35 @@ namespace layer_shell {
         new LayerSurface(scene_surface, output);
     }
 
+    LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
+        : layer_surface(scene->layer_surface),
+          node(this),
+          scene(scene),
+          output(output),
+          popup_tree(wlr_scene_tree_create(server.root.layer_popups)),
+          tree(scene->tree),
+
+          map_list(LISTEN(layer_surface->surface->events.map, LayerSurface::map)),
+          unmap_list(LISTEN(layer_surface->surface->events.unmap, LayerSurface::unmap)),
+          commit_list(LISTEN(layer_surface->surface->events.commit, LayerSurface::commit)),
+          output_destroy_list(LISTEN(output->output->events.destroy, LayerSurface::output_destroy)),
+          destroy_list(LISTEN(layer_surface->events.destroy, LayerSurface::destroy)),
+          new_popup_list(LISTEN(layer_surface->events.new_popup, LayerSurface::new_popup)) {
+        layer_surface->data = this;
+        tree->node.data = this;
+    }
+
+    void LayerSurface::handle_focus() {
+        if(!layer_surface || !layer_surface->surface || !layer_surface->surface->mapped)
+            return;
+
+        if(layer_surface->current.keyboard_interactive ==
+           ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
+            return;
+
+        server.input_manager.seat.focus_node(&node);
+    }
+
     void LayerSurface::map(LayerSurface *surface, void *data) {
         wlr_scene_node_set_enabled(&surface->scene->tree->node, true);
 
@@ -81,34 +110,5 @@ namespace layer_shell {
         wlr_xdg_popup *xdg_popup = static_cast<wlr_xdg_popup *>(data);
 
         surface->popups.push_back(new xdg_shell::Popup(xdg_popup, surface->scene->tree));
-    }
-
-    LayerSurface::LayerSurface(wlr_scene_layer_surface_v1 *scene, output::Output *output)
-        : layer_surface(scene->layer_surface),
-          node(this),
-          scene(scene),
-          output(output),
-          popup_tree(wlr_scene_tree_create(server.root.layer_popups)),
-          tree(scene->tree),
-
-          map_list(LISTEN(layer_surface->surface->events.map, LayerSurface::map)),
-          unmap_list(LISTEN(layer_surface->surface->events.unmap, LayerSurface::unmap)),
-          commit_list(LISTEN(layer_surface->surface->events.commit, LayerSurface::commit)),
-          output_destroy_list(LISTEN(output->output->events.destroy, LayerSurface::output_destroy)),
-          destroy_list(LISTEN(layer_surface->events.destroy, LayerSurface::destroy)),
-          new_popup_list(LISTEN(layer_surface->events.new_popup, LayerSurface::new_popup)) {
-        layer_surface->data = this;
-        tree->node.data = this;
-    }
-
-    void LayerSurface::handle_focus() {
-        if(!layer_surface || !layer_surface->surface || !layer_surface->surface->mapped)
-            return;
-
-        if(layer_surface->current.keyboard_interactive ==
-           ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
-            return;
-
-        server.input_manager.seat.focus_node(&node);
     }
 }

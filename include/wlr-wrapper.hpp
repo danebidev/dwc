@@ -10,7 +10,7 @@ namespace wrapper {
     // This whole thing is hacky af
     template <typename Container>
     struct Listener {
-        // Has to remaint first
+        // Has to remain first
         wl_listener listener;
 
         using Callback = std::function<void(Container*, void*)>;

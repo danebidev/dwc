@@ -12,136 +12,6 @@ namespace xdg_shell {
         new Toplevel(xdg_toplevel);
     }
 
-    void Toplevel::map(Toplevel* toplevel, void* data) {
-        output::Output* output = server.output_manager.focused_output();
-        if(!output && !server.output_manager.outputs.empty())
-            output = server.output_manager.outputs.front();
-
-        if(output) {
-            assert(output->active_workspace);
-
-            toplevel->workspace = output->active_workspace;
-            toplevel->workspace->floating.push_back(toplevel);
-
-            wlr_surface_set_preferred_buffer_scale(toplevel->toplevel->base->surface,
-                                                   output->output->scale);
-
-            wlr_box* usable_area = &output->usable_area;
-
-            uint32_t width = toplevel->toplevel->scheduled.width > 0
-                                 ? toplevel->toplevel->scheduled.width
-                                 : toplevel->toplevel->current.width;
-
-            uint32_t height = toplevel->toplevel->scheduled.height > 0
-                                  ? toplevel->toplevel->scheduled.height
-                                  : toplevel->toplevel->current.height;
-
-            if(!width || !height) {
-                width = toplevel->toplevel->base->surface->current.width;
-                height = toplevel->toplevel->base->surface->current.height;
-            }
-
-            width = std::min(width, (uint32_t)usable_area->width);
-            height = std::min(height, (uint32_t)usable_area->height);
-
-            int x = output->output_box.x + (usable_area->width - width) / 2;
-            int y = output->output_box.y + (usable_area->height - height) / 2;
-
-            x = std::max(x, usable_area->x);
-            y = std::max(y, usable_area->y);
-
-            wlr_scene_node_set_position(&toplevel->scene_tree->node, x, y);
-        }
-
-        server.toplevels.push_back(toplevel);
-        wl_signal_emit(&server.root.events.new_node, static_cast<void*>(&toplevel->node));
-    }
-
-    // Called when an xdg_toplevel gets unmapped
-    void Toplevel::unmap(Toplevel* toplevel, void* data) {
-        // Reset cursor mode if the toplevel was currently grabbed
-        if(toplevel == server.input_manager.seat.cursor.grabbed_toplevel)
-            server.input_manager.seat.cursor.reset_cursor_mode();
-
-        for(auto& ws : server.root.workspaces) {
-            if(ws.second->focused_toplevel == toplevel)
-                ws.second->focused_toplevel = nullptr;
-        }
-
-        wl_signal_emit(&toplevel->node.events.node_destroy, static_cast<void*>(&toplevel->node));
-        server.toplevels.remove(toplevel);
-        toplevel->workspace->floating.remove(toplevel);
-        if(toplevel->workspace->focused_toplevel == toplevel)
-            toplevel->workspace->focused_toplevel = nullptr;
-    }
-
-    void Toplevel::commit(Toplevel* toplevel, void* data) {
-        if(toplevel->toplevel->base->initial_commit)
-            // Set size to 0,0 so the client can choose the size
-            wlr_xdg_toplevel_set_size(toplevel->toplevel, 0, 0);
-    }
-
-    void Toplevel::destroy(Toplevel* toplevel, void* data) {
-        delete toplevel;
-    }
-
-    void Toplevel::request_move(Toplevel* toplevel, void* data) {
-        server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
-    }
-
-    void Toplevel::request_resize(Toplevel* toplevel, void* data) {
-        wlr_xdg_toplevel_resize_event* event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-        server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::RESIZE,
-                                                           event->edges);
-    }
-
-    void Toplevel::request_minimize(Toplevel* toplevel, void* data) {
-        if(toplevel->toplevel->base->initialized)
-            wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
-    }
-
-    void Toplevel::request_fullscreen(Toplevel* toplevel, void* data) {
-        toplevel->fullscreen();
-    }
-
-    void Toplevel::new_popup(Toplevel* toplevel, void* data) {
-        wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
-        new Popup(xdg_popup, toplevel->scene_tree);
-    }
-
-    void Popup::commit(Popup* popup, void* data) {
-        output::Output* output = server.output_manager.focused_output();
-
-        if(!output)
-            return;
-
-        int lx, ly;
-        wlr_scene_node_coords(&popup->scene->node.parent->node, &lx, &ly);
-
-        // the output box expressed in the coordinate system of the parent
-        // of the popup
-        struct wlr_box box = {
-            .x = output->output_box.x - lx,
-            .y = output->output_box.y - ly,
-            .width = output->output_box.width,
-            .height = output->output_box.height,
-        };
-
-        wlr_xdg_popup_unconstrain_from_box(popup->popup, &box);
-
-        if(popup->popup->base->initial_commit)
-            wlr_xdg_surface_schedule_configure(popup->popup->base);
-    }
-
-    void Popup::destroy(Popup* popup, void* data) {
-        delete popup;
-    }
-
-    void Popup::new_popup(Popup* popup, void* data) {
-        wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
-        new Popup(xdg_popup, popup->scene);
-    }
-
     Toplevel::Toplevel(wlr_xdg_toplevel* xdg_toplevel)
         : toplevel(xdg_toplevel),
           node(this),
@@ -214,6 +84,102 @@ namespace xdg_shell {
         workspace->fullscreen = true;
     }
 
+    void Toplevel::map(Toplevel* toplevel, void* data) {
+        output::Output* output = server.output_manager.focused_output();
+        if(!output && !server.output_manager.outputs.empty())
+            output = server.output_manager.outputs.front();
+
+        if(output) {
+            assert(output->active_workspace);
+
+            toplevel->workspace = output->active_workspace;
+            toplevel->workspace->floating.push_back(toplevel);
+
+            wlr_surface_set_preferred_buffer_scale(toplevel->toplevel->base->surface,
+                                                   output->output->scale);
+
+            wlr_box* usable_area = &output->usable_area;
+
+            uint32_t width = toplevel->toplevel->scheduled.width > 0
+                                 ? toplevel->toplevel->scheduled.width
+                                 : toplevel->toplevel->current.width;
+
+            uint32_t height = toplevel->toplevel->scheduled.height > 0
+                                  ? toplevel->toplevel->scheduled.height
+                                  : toplevel->toplevel->current.height;
+
+            if(!width || !height) {
+                width = toplevel->toplevel->base->surface->current.width;
+                height = toplevel->toplevel->base->surface->current.height;
+            }
+
+            width = std::min(width, (uint32_t)usable_area->width);
+            height = std::min(height, (uint32_t)usable_area->height);
+
+            int x = output->output_box.x + (usable_area->width - width) / 2;
+            int y = output->output_box.y + (usable_area->height - height) / 2;
+
+            x = std::max(x, usable_area->x);
+            y = std::max(y, usable_area->y);
+
+            wlr_scene_node_set_position(&toplevel->scene_tree->node, x, y);
+        }
+
+        server.toplevels.push_back(toplevel);
+        wl_signal_emit(&server.root.events.new_node, static_cast<void*>(&toplevel->node));
+    }
+
+    void Toplevel::unmap(Toplevel* toplevel, void* data) {
+        // Reset cursor mode if the toplevel was currently grabbed
+        if(toplevel == server.input_manager.seat.cursor.grabbed_toplevel)
+            server.input_manager.seat.cursor.reset_cursor_mode();
+
+        for(auto& ws : server.root.workspaces) {
+            if(ws.second->focused_toplevel == toplevel)
+                ws.second->focused_toplevel = nullptr;
+        }
+
+        wl_signal_emit(&toplevel->node.events.node_destroy, static_cast<void*>(&toplevel->node));
+        server.toplevels.remove(toplevel);
+        toplevel->workspace->floating.remove(toplevel);
+        if(toplevel->workspace->focused_toplevel == toplevel)
+            toplevel->workspace->focused_toplevel = nullptr;
+    }
+
+    void Toplevel::commit(Toplevel* toplevel, void* data) {
+        if(toplevel->toplevel->base->initial_commit)
+            // Set size to 0,0 so the client can choose the size
+            wlr_xdg_toplevel_set_size(toplevel->toplevel, 0, 0);
+    }
+
+    void Toplevel::destroy(Toplevel* toplevel, void* data) {
+        delete toplevel;
+    }
+
+    void Toplevel::new_popup(Toplevel* toplevel, void* data) {
+        wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
+        new Popup(xdg_popup, toplevel->scene_tree);
+    }
+
+    void Toplevel::request_move(Toplevel* toplevel, void* data) {
+        server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
+    }
+
+    void Toplevel::request_resize(Toplevel* toplevel, void* data) {
+        wlr_xdg_toplevel_resize_event* event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
+        server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::RESIZE,
+                                                           event->edges);
+    }
+
+    void Toplevel::request_minimize(Toplevel* toplevel, void* data) {
+        if(toplevel->toplevel->base->initialized)
+            wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
+    }
+
+    void Toplevel::request_fullscreen(Toplevel* toplevel, void* data) {
+        toplevel->fullscreen();
+    }
+
     Popup::Popup(wlr_xdg_popup* xdg_popup, wlr_scene_tree* parent_tree)
         : popup(xdg_popup),
 
@@ -223,5 +189,38 @@ namespace xdg_shell {
           destroy_list(LISTEN(popup->events.destroy, Popup::destroy)),
           new_popup_list(LISTEN(popup->base->events.new_popup, Popup::new_popup)) {
         xdg_popup->base->data = scene;
+    }
+
+    void Popup::commit(Popup* popup, void* data) {
+        output::Output* output = server.output_manager.focused_output();
+
+        if(!output)
+            return;
+
+        int lx, ly;
+        wlr_scene_node_coords(&popup->scene->node.parent->node, &lx, &ly);
+
+        // the output box expressed in the coordinate system of the parent
+        // of the popup
+        struct wlr_box box = {
+            .x = output->output_box.x - lx,
+            .y = output->output_box.y - ly,
+            .width = output->output_box.width,
+            .height = output->output_box.height,
+        };
+
+        wlr_xdg_popup_unconstrain_from_box(popup->popup, &box);
+
+        if(popup->popup->base->initial_commit)
+            wlr_xdg_surface_schedule_configure(popup->popup->base);
+    }
+
+    void Popup::destroy(Popup* popup, void* data) {
+        delete popup;
+    }
+
+    void Popup::new_popup(Popup* popup, void* data) {
+        wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
+        new Popup(xdg_popup, popup->scene);
     }
 }

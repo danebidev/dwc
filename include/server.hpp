@@ -57,9 +57,9 @@ class Server {
     wrapper::Listener<Server> xdg_shell_destroy_list;
     wrapper::Listener<Server> layer_shell_destroy_list;
 
-    void backend_destroy(Server*, void*);
-    void xdg_shell_destroy(Server*, void*);
-    void layer_shell_destroy(Server*, void*);
+    void backend_destroy(Server* server, void* data);
+    void xdg_shell_destroy(Server* server, void* data);
+    void layer_shell_destroy(Server* server, void* data);
 };
 
 extern Server server;

@@ -67,9 +67,9 @@ namespace cursor {
         // Should be called whenever the cursor moves for any reason
         void process_motion(uint32_t time);
         // Handles toplevel movement
-        void process_cursor_move();
+        void process_move();
         // Handles toplevel resize
-        void process_cursor_resize();
+        void process_resize();
 
         // Called when a pointer emits a relative pointer motion event
         void motion(Cursor* cursor, void* data);
@@ -91,14 +91,12 @@ namespace keyboard {
         public:
         wlr_keyboard* keyboard;
 
-        Keyboard(seat::SeatDevice* keyboard);
+        Keyboard(wlr_keyboard* keyboard);
 
         // Configure keyboard repeat rate, keymap, and set the keyboard in the seat
         void configure();
 
         private:
-        seat::SeatDevice* seat_dev;
-
         // TODO: set these from config
         int repeat_rate;
         int repeat_delay;
@@ -110,8 +108,6 @@ namespace keyboard {
         uint32_t keysyms_raw(xkb_keycode_t keycode, const xkb_keysym_t** keysyms);
         uint32_t keysyms_translated(xkb_keycode_t keycode, const xkb_keysym_t** keysyms,
                                     uint32_t* modifiers);
-        bool exec_compositor_binding(const xkb_keysym_t* pressed_keysyms, uint32_t modifiers,
-                                     size_t keysyms_len);
 
         // Called when a modifier key (ctrl, shift, alt, etc.) is pressed
         void modifiers(Keyboard* keyboard, void* data);
@@ -142,7 +138,6 @@ namespace seat {
     class SeatDevice {
         public:
         input::InputDevice* device;
-
         keyboard::Keyboard* keyboard;
 
         SeatDevice(input::InputDevice* device);
@@ -177,6 +172,11 @@ namespace seat {
         wlr_scene_tree* scene_tree;
         /*wlr_scene_tree* drag_icons;*/
 
+        // List of devices attached to this seat
+        // Since we currently only have a single seat, this
+        // this match the input manager device list
+        std::list<SeatDevice*> devices;
+
         wrapper::Listener<Seat> new_node_list;
         wrapper::Listener<Seat> request_cursor_list;
         wrapper::Listener<Seat> request_set_selection_list;
@@ -188,15 +188,8 @@ namespace seat {
         void focus_surface(wlr_surface* surface, bool toplevel);
         void focus_layer(wlr_layer_surface_v1* layer);
 
-        // List of devices attached to this seat
-        // Since we currently only have a single seat, this
-        // this match the input manager device list
-        std::list<SeatDevice*> devices;
-
         // Returns a seat device from the InputDevice, or nullptr if it can't be found
         SeatDevice* get_device(input::InputDevice* device);
-
-        // Various configuration functions
 
         // This just gets a generic seat device and calls the right configure function
         void configure_device(SeatDevice* device);
@@ -205,6 +198,7 @@ namespace seat {
 
         // Configure xcursor themes and size
         void configure_xcursor();
+
         // Notifies the seat that the keyboard focus has changed
         void keyboard_notify_enter(wlr_surface* surface);
 

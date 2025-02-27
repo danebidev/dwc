@@ -196,6 +196,7 @@ namespace parsing {
     class Lexer {
         public:
         Lexer(const std::string& text);
+
         std::vector<Token> get_tokens();
 
         private:

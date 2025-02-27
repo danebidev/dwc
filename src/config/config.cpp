@@ -98,6 +98,10 @@ namespace config {
         }
     }
 
+    Config::~Config() {
+        clear();
+    }
+
     void Config::set_config_path(std::filesystem::path path) {
         wordexp_t p;
         wordexp(path.c_str(), &p, 0);
@@ -108,6 +112,13 @@ namespace config {
             wlr_log(WLR_ERROR, "config path is not valid - skipping");
 
         wordfree(&p);
+    }
+
+    void Config::execute_phase(ConfigLoadPhase phase) {
+        for(auto& command : commands) {
+            if(!command->execute(phase))
+                break;
+        }
     }
 
     void Config::load() {
@@ -129,17 +140,6 @@ namespace config {
             std::string value = cur.substr(pos + 1, cur.size());
             vars[name] = value;
         }
-    }
-
-    void Config::execute_phase(ConfigLoadPhase phase) {
-        for(auto& command : commands) {
-            if(!command->execute(phase))
-                break;
-        }
-    }
-
-    Config::~Config() {
-        clear();
     }
 
     void Config::clear() {

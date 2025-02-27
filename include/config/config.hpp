@@ -42,10 +42,6 @@ namespace config {
 
     class Config {
         public:
-        void set_config_path(std::filesystem::path path);
-        void load();
-        void execute_phase(ConfigLoadPhase phase);
-
         std::unordered_map<std::string, std::string> vars;
         std::vector<std::pair<Bind, commands::Command *>> binds;
         std::unordered_map<std::string, OutputConfig> output_config;
@@ -54,6 +50,9 @@ namespace config {
 
         ~Config();
 
+        void set_config_path(std::filesystem::path path);
+        void execute_phase(ConfigLoadPhase phase);
+        void load();
         void clear();
 
         private:

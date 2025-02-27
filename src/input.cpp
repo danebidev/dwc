@@ -14,6 +14,196 @@
 #define DEFAULT_SEAT "seat0"
 
 namespace cursor {
+    Cursor::Cursor()
+        : cursor(wlr_cursor_create()),
+          cursor_mode(CursorMode::PASSTHROUGH),
+          xcursor_mgr(wlr_xcursor_manager_create("default", 24)),
+          current_workspace(nullptr),
+
+          motion_list(LISTEN(cursor->events.motion, Cursor::motion)),
+          motion_absolute_list(LISTEN(cursor->events.motion_absolute, Cursor::motion_absolute)),
+          button_list(LISTEN(cursor->events.button, Cursor::button)),
+          axis_list(LISTEN(cursor->events.axis, Cursor::axis)),
+          frame_list(LISTEN(cursor->events.frame, Cursor::frame)) {
+        wlr_cursor_attach_output_layout(cursor, server.root.output_layout);
+    }
+
+    Cursor::~Cursor() {
+        motion_list.free();
+        motion_absolute_list.free();
+        button_list.free();
+        axis_list.free();
+        frame_list.free();
+
+        wlr_xcursor_manager_destroy(xcursor_mgr);
+        wlr_cursor_destroy(cursor);
+    }
+
+    void Cursor::set_image(const char *new_image) {
+        if(!(server.input_manager.seat.seat->capabilities & WL_SEAT_CAPABILITY_POINTER))
+            return;
+
+        // Unset image if the new image is null
+        if(!new_image)
+            wlr_cursor_unset_image(cursor);
+        else
+            wlr_cursor_set_xcursor(cursor, xcursor_mgr, new_image);
+    }
+
+    void Cursor::reset_cursor_mode() {
+        cursor_mode = CursorMode::PASSTHROUGH;
+        grabbed_toplevel = nullptr;
+    }
+
+    void Cursor::begin_interactive(xdg_shell::Toplevel *toplevel, cursor::CursorMode mode,
+                                   uint32_t edges) {
+        // This should never be called with passthrough mode
+        assert(mode != cursor::CursorMode::PASSTHROUGH);
+
+        grabbed_toplevel = toplevel;
+        cursor_mode = mode;
+
+        if(mode == CursorMode::MOVE) {
+            // Sets grab coordinates to toplevel-relative coordinates
+            grab_x = cursor->x - toplevel->scene_tree->node.x;
+            grab_y = cursor->y - toplevel->scene_tree->node.y;
+        }
+        else {
+            // Black magic i don't understand
+            wlr_box *geo_box = &toplevel->toplevel->base->geometry;
+            double border_x = (toplevel->scene_tree->node.x + geo_box->x) +
+                              ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
+            double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
+                              ((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
+
+            grab_x = cursor->x - border_x;
+            grab_y = cursor->y - border_y;
+
+            grab_geobox = *geo_box;
+            grab_geobox.x += toplevel->scene_tree->node.x;
+            grab_geobox.y += toplevel->scene_tree->node.y;
+
+            resize_edges = edges;
+        }
+    }
+
+    void Cursor::move_to_coords(double x, double y, wlr_input_device *dev) {
+        wlr_box box;
+        wlr_output_layout_get_box(server.root.output_layout, nullptr, &box);
+        wlr_cursor_warp_absolute(cursor, dev, x / box.width, y / box.height);
+    }
+
+    void Cursor::process_motion(uint32_t time) {
+        // Handle workspace focus
+        workspace::Workspace *ws = server.output_manager.focused_output()->active_workspace;
+        assert(ws);
+        if(!current_workspace || current_workspace != ws) {
+            current_workspace = ws;
+            ws->focus();
+        }
+
+        // If the cursor mode is not passthrough, consume the motion
+        if(cursor_mode == cursor::CursorMode::MOVE) {
+            process_move();
+            return;
+        }
+        else if(cursor_mode == cursor::CursorMode::RESIZE) {
+            process_resize();
+            return;
+        }
+
+        // Surface-local coordinates
+        double sx, sy;
+        wlr_surface *surface = nullptr;
+
+        // Check if the cursor entered a toplevel surface
+        xdg_shell::Toplevel *toplevel = server.toplevel_at(cursor->x, cursor->y, surface, sx, sy);
+        if(toplevel) {
+            wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
+            wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
+            server.input_manager.seat.focus_node(&toplevel->node);
+            return;
+        }
+
+        // Check if the cursor entered a layer_shell surface
+        layer_shell::LayerSurface *layer_surface =
+            server.layer_surface_at(cursor->x, cursor->y, surface, sx, sy);
+        if(layer_surface) {
+            // TODO: set cursor image
+            wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
+            wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
+            server.input_manager.seat.focus_node(&layer_surface->node);
+            return;
+        }
+
+        // Otherwise, set the default image and clear the focus
+        set_image("default");
+        wlr_seat_pointer_clear_focus(server.input_manager.seat.seat);
+    }
+
+    void Cursor::process_move() {
+        assert(grabbed_toplevel);
+        int x = cursor->x - grab_x;
+        int y = cursor->y - grab_y;
+
+        wlr_scene_node_set_position(&grabbed_toplevel->scene_tree->node, x, y);
+
+        output::Output *output = server.output_manager.output_at(x, y);
+        if(output && output->active_workspace != grabbed_toplevel->workspace) {
+            if(grabbed_toplevel->workspace->focused_toplevel == grabbed_toplevel)
+                grabbed_toplevel->workspace->focused_toplevel = nullptr;
+
+            grabbed_toplevel->workspace->floating.remove(grabbed_toplevel);
+            grabbed_toplevel->workspace = output->active_workspace;
+
+            output->active_workspace->floating.push_back(grabbed_toplevel);
+        }
+    }
+
+    void Cursor::process_resize() {
+        xdg_shell::Toplevel *toplevel = grabbed_toplevel;
+        // Gets the displacement from the grab location
+        double border_x = cursor->x - grab_x;
+        double border_y = cursor->y - grab_y;
+        int new_left = grab_geobox.x;
+        int new_right = grab_geobox.x + grab_geobox.width;
+        int new_top = grab_geobox.y;
+        int new_bottom = grab_geobox.y + grab_geobox.height;
+
+        if(resize_edges & WLR_EDGE_TOP) {
+            new_top = border_y;
+            if(new_top >= new_bottom) {
+                new_top = new_bottom - 1;
+            }
+        }
+        else if(resize_edges & WLR_EDGE_BOTTOM) {
+            new_bottom = border_y;
+            if(new_bottom <= new_top) {
+                new_bottom = new_top + 1;
+            }
+        }
+        if(resize_edges & WLR_EDGE_LEFT) {
+            new_left = border_x;
+            if(new_left >= new_right) {
+                new_left = new_right - 1;
+            }
+        }
+        else if(resize_edges & WLR_EDGE_RIGHT) {
+            new_right = border_x;
+            if(new_right <= new_left) {
+                new_right = new_left + 1;
+            }
+        }
+
+        wlr_box *geo_box = &toplevel->toplevel->base->geometry;
+        wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left - geo_box->x,
+                                    new_top - geo_box->y);
+
+        int new_width = new_right - new_left;
+        int new_height = new_bottom - new_top;
+        wlr_xdg_toplevel_set_size(toplevel->toplevel, new_width, new_height);
+    }
+
     void Cursor::motion(Cursor *cursor, void *data) {
         wlr_pointer_motion_event *event = static_cast<wlr_pointer_motion_event *>(data);
 
@@ -68,196 +258,6 @@ namespace cursor {
     void Cursor::frame(Cursor *cursor, void *data) {
         wlr_seat_pointer_notify_frame(server.input_manager.seat.seat);
     }
-
-    Cursor::Cursor()
-        : cursor(wlr_cursor_create()),
-          cursor_mode(CursorMode::PASSTHROUGH),
-          xcursor_mgr(wlr_xcursor_manager_create("default", 24)),
-          current_workspace(nullptr),
-
-          motion_list(LISTEN(cursor->events.motion, Cursor::motion)),
-          motion_absolute_list(LISTEN(cursor->events.motion_absolute, Cursor::motion_absolute)),
-          button_list(LISTEN(cursor->events.button, Cursor::button)),
-          axis_list(LISTEN(cursor->events.axis, Cursor::axis)),
-          frame_list(LISTEN(cursor->events.frame, Cursor::frame)) {
-        wlr_cursor_attach_output_layout(cursor, server.root.output_layout);
-    }
-
-    Cursor::~Cursor() {
-        motion_list.free();
-        motion_absolute_list.free();
-        button_list.free();
-        axis_list.free();
-        frame_list.free();
-
-        wlr_xcursor_manager_destroy(xcursor_mgr);
-        wlr_cursor_destroy(cursor);
-    }
-
-    void Cursor::reset_cursor_mode() {
-        cursor_mode = CursorMode::PASSTHROUGH;
-        grabbed_toplevel = nullptr;
-    }
-
-    void Cursor::set_image(const char *new_image) {
-        if(!(server.input_manager.seat.seat->capabilities & WL_SEAT_CAPABILITY_POINTER))
-            return;
-
-        // Unset image if the new image is null
-        if(!new_image)
-            wlr_cursor_unset_image(cursor);
-        else
-            wlr_cursor_set_xcursor(cursor, xcursor_mgr, new_image);
-    }
-
-    void Cursor::process_motion(uint32_t time) {
-        // Handle workspace focus
-        workspace::Workspace *ws = server.output_manager.focused_output()->active_workspace;
-        assert(ws);
-        if(!current_workspace || current_workspace != ws) {
-            current_workspace = ws;
-            ws->focus();
-        }
-
-        // If the cursor mode is not passthrough, consume the motion
-        if(cursor_mode == cursor::CursorMode::MOVE) {
-            process_cursor_move();
-            return;
-        }
-        else if(cursor_mode == cursor::CursorMode::RESIZE) {
-            process_cursor_resize();
-            return;
-        }
-
-        // Surface-local coordinates
-        double sx, sy;
-        wlr_surface *surface = nullptr;
-
-        // Check if the cursor entered a toplevel surface
-        xdg_shell::Toplevel *toplevel = server.toplevel_at(cursor->x, cursor->y, surface, sx, sy);
-        if(toplevel) {
-            wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
-            wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
-            server.input_manager.seat.focus_node(&toplevel->node);
-            return;
-        }
-
-        // Check if the cursor entered a layer_shell surface
-        layer_shell::LayerSurface *layer_surface =
-            server.layer_surface_at(cursor->x, cursor->y, surface, sx, sy);
-        if(layer_surface) {
-            // TODO: set cursor image
-            wlr_seat_pointer_notify_enter(server.input_manager.seat.seat, surface, sx, sy);
-            wlr_seat_pointer_notify_motion(server.input_manager.seat.seat, time, sx, sy);
-            server.input_manager.seat.focus_node(&layer_surface->node);
-            return;
-        }
-
-        // Otherwise, set the default image and clear the focus
-        set_image("default");
-        wlr_seat_pointer_clear_focus(server.input_manager.seat.seat);
-    }
-
-    void Cursor::begin_interactive(xdg_shell::Toplevel *toplevel, cursor::CursorMode mode,
-                                   uint32_t edges) {
-        // This should never be called with passthrough mode
-        assert(mode != cursor::CursorMode::PASSTHROUGH);
-
-        grabbed_toplevel = toplevel;
-        cursor_mode = mode;
-
-        if(mode == CursorMode::MOVE) {
-            // Sets grab coordinates to toplevel-relative coordinates
-            grab_x = cursor->x - toplevel->scene_tree->node.x;
-            grab_y = cursor->y - toplevel->scene_tree->node.y;
-        }
-        else {
-            // Black magic i don't understand
-            wlr_box *geo_box = &toplevel->toplevel->base->geometry;
-            double border_x = (toplevel->scene_tree->node.x + geo_box->x) +
-                              ((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
-            double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
-                              ((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
-
-            grab_x = cursor->x - border_x;
-            grab_y = cursor->y - border_y;
-
-            grab_geobox = *geo_box;
-            grab_geobox.x += toplevel->scene_tree->node.x;
-            grab_geobox.y += toplevel->scene_tree->node.y;
-
-            resize_edges = edges;
-        }
-    }
-
-    void Cursor::move_to_coords(double x, double y, wlr_input_device *dev) {
-        wlr_box box;
-        wlr_output_layout_get_box(server.root.output_layout, nullptr, &box);
-        wlr_cursor_warp_absolute(cursor, dev, x / box.width, y / box.height);
-    }
-
-    void Cursor::process_cursor_move() {
-        assert(grabbed_toplevel);
-        int x = cursor->x - grab_x;
-        int y = cursor->y - grab_y;
-
-        wlr_scene_node_set_position(&grabbed_toplevel->scene_tree->node, x, y);
-
-        output::Output *output = server.output_manager.output_at(x, y);
-        if(output && output->active_workspace != grabbed_toplevel->workspace) {
-            if(grabbed_toplevel->workspace->focused_toplevel == grabbed_toplevel)
-                grabbed_toplevel->workspace->focused_toplevel = nullptr;
-
-            grabbed_toplevel->workspace->floating.remove(grabbed_toplevel);
-            grabbed_toplevel->workspace = output->active_workspace;
-
-            output->active_workspace->floating.push_back(grabbed_toplevel);
-        }
-    }
-
-    void Cursor::process_cursor_resize() {
-        xdg_shell::Toplevel *toplevel = grabbed_toplevel;
-        // Gets the displacement from the grab location
-        double border_x = cursor->x - grab_x;
-        double border_y = cursor->y - grab_y;
-        int new_left = grab_geobox.x;
-        int new_right = grab_geobox.x + grab_geobox.width;
-        int new_top = grab_geobox.y;
-        int new_bottom = grab_geobox.y + grab_geobox.height;
-
-        if(resize_edges & WLR_EDGE_TOP) {
-            new_top = border_y;
-            if(new_top >= new_bottom) {
-                new_top = new_bottom - 1;
-            }
-        }
-        else if(resize_edges & WLR_EDGE_BOTTOM) {
-            new_bottom = border_y;
-            if(new_bottom <= new_top) {
-                new_bottom = new_top + 1;
-            }
-        }
-        if(resize_edges & WLR_EDGE_LEFT) {
-            new_left = border_x;
-            if(new_left >= new_right) {
-                new_left = new_right - 1;
-            }
-        }
-        else if(resize_edges & WLR_EDGE_RIGHT) {
-            new_right = border_x;
-            if(new_right <= new_left) {
-                new_right = new_left + 1;
-            }
-        }
-
-        wlr_box *geo_box = &toplevel->toplevel->base->geometry;
-        wlr_scene_node_set_position(&toplevel->scene_tree->node, new_left - geo_box->x,
-                                    new_top - geo_box->y);
-
-        int new_width = new_right - new_left;
-        int new_height = new_bottom - new_top;
-        wlr_xdg_toplevel_set_size(toplevel->toplevel, new_width, new_height);
-    }
 }
 
 namespace keyboard {
@@ -272,65 +272,25 @@ namespace keyboard {
         return false;
     }
 
-    void Keyboard::modifiers(Keyboard *keyboard, void *data) {
-        wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
-        wlr_seat_keyboard_notify_modifiers(server.input_manager.seat.seat,
-                                           &keyboard->keyboard->modifiers);
-    }
+    bool handle_compositor_binding(const xkb_keysym_t *pressed_keysyms, uint32_t modifiers,
+                                   size_t keysyms_len) {
+        for(size_t i = 0; i < keysyms_len; ++i) {
+            xkb_keysym_t keysym = pressed_keysyms[i];
 
-    void Keyboard::key(Keyboard *keyboard, void *data) {
-        wlr_keyboard_key_event *event = static_cast<wlr_keyboard_key_event *>(data);
-
-        // libinput keycode -> xkbcommon
-        uint32_t keycode = event->keycode + 8;
-
-        bool handled = false;
-
-        if(event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-            // Get pressed modifiers
-            uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
-
-            const xkb_keysym_t *raw_syms, *translated_syms;
-
-            // Raw keybinds
-            size_t nsyms = keyboard->keysyms_raw(keycode, &raw_syms);
-            for(size_t i = 0; i < nsyms; i++) {
-                handled |= handle_keybind(config::Bind { modifiers, raw_syms[i] });
-                if(handled)
-                    goto end;
-            }
-
-            handled |= keyboard->exec_compositor_binding(raw_syms, modifiers, nsyms);
-            if(handled)
-                goto end;
-
-            // Translated keybinds
-            nsyms = keyboard->keysyms_translated(keycode, &translated_syms, &modifiers);
-            if((modifiers & WLR_MODIFIER_SHIFT) || (modifiers & WLR_MODIFIER_CAPS)) {
-                for(size_t i = 0; i < nsyms; i++) {
-                    handled |= handle_keybind(config::Bind { modifiers, translated_syms[i] });
-                    if(handled)
-                        goto end;
+            if(keysym >= XKB_KEY_XF86Switch_VT_1 && keysym <= XKB_KEY_XF86Switch_VT_12) {
+                if(server.session) {
+                    unsigned vt = keysym - XKB_KEY_XF86Switch_VT_1 + 1;
+                    wlr_session_change_vt(server.session, vt);
                 }
+                return true;
             }
-            handled |= keyboard->exec_compositor_binding(translated_syms, modifiers, nsyms);
         }
 
-    end:
-        if(!handled) {
-            wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
-            wlr_seat_keyboard_notify_key(server.input_manager.seat.seat, event->time_msec,
-                                         event->keycode, event->state);
-        }
+        return false;
     }
 
-    void Keyboard::destroy(Keyboard *keyboard, void *data) {
-        delete keyboard;
-    }
-
-    Keyboard::Keyboard(seat::SeatDevice *device)
-        : keyboard(wlr_keyboard_from_input_device(device->device->device)),
-          seat_dev(device),
+    Keyboard::Keyboard(wlr_keyboard *keyboard)
+        : keyboard(keyboard),
 
           modifiers_list(LISTEN(keyboard->events.modifiers, Keyboard::modifiers)),
           key_list(LISTEN(keyboard->events.key, Keyboard::key)),
@@ -378,25 +338,78 @@ namespace keyboard {
         return xkb_state_key_get_syms(keyboard->xkb_state, keycode, keysyms);
     }
 
-    bool Keyboard::exec_compositor_binding(const xkb_keysym_t *pressed_keysyms, uint32_t modifiers,
-                                           size_t keysyms_len) {
-        for(size_t i = 0; i < keysyms_len; ++i) {
-            xkb_keysym_t keysym = pressed_keysyms[i];
+    void Keyboard::modifiers(Keyboard *keyboard, void *data) {
+        wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
+        wlr_seat_keyboard_notify_modifiers(server.input_manager.seat.seat,
+                                           &keyboard->keyboard->modifiers);
+    }
 
-            if(keysym >= XKB_KEY_XF86Switch_VT_1 && keysym <= XKB_KEY_XF86Switch_VT_12) {
-                if(server.session) {
-                    unsigned vt = keysym - XKB_KEY_XF86Switch_VT_1 + 1;
-                    wlr_session_change_vt(server.session, vt);
-                }
-                return true;
+    void Keyboard::key(Keyboard *keyboard, void *data) {
+        wlr_keyboard_key_event *event = static_cast<wlr_keyboard_key_event *>(data);
+
+        // libinput keycode -> xkbcommon
+        uint32_t keycode = event->keycode + 8;
+
+        bool handled = false;
+
+        if(event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+            // Get pressed modifiers
+            uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->keyboard);
+
+            const xkb_keysym_t *raw_syms, *translated_syms;
+
+            // Raw keybinds
+            size_t nsyms = keyboard->keysyms_raw(keycode, &raw_syms);
+            for(size_t i = 0; i < nsyms; i++) {
+                handled |= handle_keybind(config::Bind { modifiers, raw_syms[i] });
+                if(handled)
+                    goto end;
             }
+
+            handled |= handle_compositor_binding(raw_syms, modifiers, nsyms);
+            if(handled)
+                goto end;
+
+            // Translated keybinds
+            nsyms = keysyms_translated(keycode, &translated_syms, &modifiers);
+            if((modifiers & WLR_MODIFIER_SHIFT) || (modifiers & WLR_MODIFIER_CAPS)) {
+                for(size_t i = 0; i < nsyms; i++) {
+                    handled |= handle_keybind(config::Bind { modifiers, translated_syms[i] });
+                    if(handled)
+                        goto end;
+                }
+            }
+            handled |= handle_compositor_binding(translated_syms, modifiers, nsyms);
         }
 
-        return false;
+    end:
+        if(!handled) {
+            wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
+            wlr_seat_keyboard_notify_key(server.input_manager.seat.seat, event->time_msec,
+                                         event->keycode, event->state);
+        }
+    }
+
+    void Keyboard::destroy(Keyboard *keyboard, void *data) {
+        delete keyboard;
     }
 }
 
 namespace seat {
+    SeatNode::SeatNode(nodes::Node *node, seat::Seat *seat)
+        : node(node),
+          seat(seat),
+
+          destroy_list(LISTEN(node->events.node_destroy, SeatNode::destroy)) {}
+
+    SeatNode::~SeatNode() {
+        std::list<SeatNode *> &stack =
+            node->has_exclusivity() ? seat->exclusivity_stack : seat->focus_stack;
+
+        stack.remove(this);
+        seat->focused_node = nullptr;
+    }
+
     // Called when a seat node is destroyed
     void SeatNode::destroy(SeatNode *seat_node, void *data) {
         Seat *seat = seat_node->seat;
@@ -423,61 +436,9 @@ namespace seat {
         seat->focus_node(focus->node);
     }
 
-    void Seat::new_node(Seat *seat, void *data) {
-        nodes::Node *node = static_cast<nodes::Node *>(data);
-        SeatNode *seat_node = seat->get_seat_node(node);
-
-        std::list<SeatNode *> &stack =
-            node->has_exclusivity() ? seat->exclusivity_stack : seat->focus_stack;
-        stack.push_front(seat_node);
-        seat->focus_node(node);
-    }
-
-    void Seat::request_cursor(Seat *seat, void *data) {
-        wlr_seat_pointer_request_set_cursor_event *event =
-            static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
-
-        if(seat->cursor.cursor_mode != cursor::CursorMode::PASSTHROUGH)
-            return;
-
-        // This event can be sent by any client so we check
-        // that it's actually being sent by the focused client
-        wlr_seat_client *focused_client = seat->seat->pointer_state.focused_client;
-        if(focused_client == event->seat_client)
-            wlr_cursor_set_surface(seat->cursor.cursor, event->surface, event->hotspot_x,
-                                   event->hotspot_y);
-    }
-
-    void Seat::request_set_selection(Seat *seat, void *data) {
-        wlr_seat_request_set_selection_event *event =
-            static_cast<wlr_seat_request_set_selection_event *>(data);
-
-        wlr_seat_set_selection(seat->seat, event->source, event->serial);
-    }
-
-    void Seat::destroy(Seat *seat, void *data) {
-        seat->request_cursor_list.free();
-        seat->request_set_selection_list.free();
-        seat->destroy_list.free();
-    }
-
     SeatDevice::SeatDevice(input::InputDevice *device)
         : device(device),
           keyboard(nullptr) {}
-
-    SeatNode::SeatNode(nodes::Node *node, seat::Seat *seat)
-        : node(node),
-          seat(seat),
-
-          destroy_list(LISTEN(node->events.node_destroy, SeatNode::destroy)) {}
-
-    SeatNode::~SeatNode() {
-        std::list<SeatNode *> &stack =
-            node->has_exclusivity() ? seat->exclusivity_stack : seat->focus_stack;
-
-        stack.remove(this);
-        seat->focused_node = nullptr;
-    }
 
     SeatDevice::~SeatDevice() {
         // TODO: destructor
@@ -496,52 +457,6 @@ namespace seat {
               LISTEN(seat->events.request_set_selection, Seat::request_set_selection)),
           destroy_list(LISTEN(seat->events.destroy, Seat::destroy)) {
         seat->data = this;
-    }
-
-    void Seat::add_device(input::InputDevice *device) {
-        if(get_device(device)) {
-            configure_device(get_device(device));
-            return;
-        }
-
-        SeatDevice *seat_dev = new SeatDevice(device);
-        devices.push_back(seat_dev);
-
-        configure_device(seat_dev);
-        update_capabilities();
-    }
-
-    void Seat::remove_device(input::InputDevice *device) {
-        SeatDevice *seat_dev = get_device(device);
-        if(!seat_dev)
-            return;
-
-        wlr_log(WLR_DEBUG, "removing device %s from seat %s", device->identifier.c_str(),
-                seat->name);
-
-        devices.remove(seat_dev);
-        delete seat_dev;
-        update_capabilities();
-    }
-
-    seat::SeatNode *seat::Seat::get_seat_node(nodes::Node *node) {
-        for(auto &seat_node : (node->has_exclusivity() ? exclusivity_stack : focus_stack)) {
-            if(seat_node->node == node)
-                return seat_node;
-        }
-
-        SeatNode *seat_node = new SeatNode(node, this);
-        return seat_node;
-    }
-
-    SeatNode *seat::Seat::get_next_focus() {
-        if(!exclusivity_stack.empty())
-            return exclusivity_stack.front();
-
-        if(!focus_stack.empty())
-            return focus_stack.front();
-
-        return nullptr;
     }
 
     void Seat::focus_node(nodes::Node *node) {
@@ -578,6 +493,52 @@ namespace seat {
             ws->focused_toplevel = node->val.toplevel;
 
         update_toplevel_activation(node, true);
+    }
+
+    SeatNode *seat::Seat::get_next_focus() {
+        if(!exclusivity_stack.empty())
+            return exclusivity_stack.front();
+
+        if(!focus_stack.empty())
+            return focus_stack.front();
+
+        return nullptr;
+    }
+
+    void Seat::add_device(input::InputDevice *device) {
+        if(get_device(device)) {
+            configure_device(get_device(device));
+            return;
+        }
+
+        SeatDevice *seat_dev = new SeatDevice(device);
+        devices.push_back(seat_dev);
+
+        configure_device(seat_dev);
+        update_capabilities();
+    }
+
+    void Seat::remove_device(input::InputDevice *device) {
+        SeatDevice *seat_dev = get_device(device);
+        if(!seat_dev)
+            return;
+
+        wlr_log(WLR_DEBUG, "removing device %s from seat %s", device->identifier.c_str(),
+                seat->name);
+
+        devices.remove(seat_dev);
+        delete seat_dev;
+        update_capabilities();
+    }
+
+    seat::SeatNode *seat::Seat::get_seat_node(nodes::Node *node) {
+        for(auto &seat_node : (node->has_exclusivity() ? exclusivity_stack : focus_stack)) {
+            if(seat_node->node == node)
+                return seat_node;
+        }
+
+        SeatNode *seat_node = new SeatNode(node, this);
+        return seat_node;
     }
 
     void Seat::focus_surface(wlr_surface *surface, bool toplevel) {
@@ -661,14 +622,6 @@ namespace seat {
         }
     }
 
-    void Seat::configure_xcursor() {
-        uint cursor_size = 24;
-
-        setenv("XCURSOR_SIZE", std::to_string(cursor_size).c_str(), true);
-        // TODO: load theme from config?
-        // setenv("XCURSOR_THEME", "", true);
-    }
-
     void Seat::configure_pointer(SeatDevice *device) {
         configure_xcursor();
         wlr_cursor_attach_input_device(cursor.cursor, device->device->device);
@@ -676,7 +629,8 @@ namespace seat {
 
     void Seat::configure_keyboard(SeatDevice *device) {
         if(!device->keyboard) {
-            device->keyboard = new keyboard::Keyboard(device);
+            device->keyboard =
+                new keyboard::Keyboard(wlr_keyboard_from_input_device(device->device->device));
         }
         device->keyboard->configure();
 
@@ -689,6 +643,14 @@ namespace seat {
         if(surface) {
             keyboard_notify_enter(surface);
         }
+    }
+
+    void Seat::configure_xcursor() {
+        uint cursor_size = 24;
+
+        setenv("XCURSOR_SIZE", std::to_string(cursor_size).c_str(), true);
+        // TODO: load theme from config?
+        // setenv("XCURSOR_THEME", "", true);
     }
 
     void Seat::keyboard_notify_enter(wlr_surface *surface) {
@@ -744,13 +706,67 @@ namespace seat {
         }
     }
 
+    void Seat::new_node(Seat *seat, void *data) {
+        nodes::Node *node = static_cast<nodes::Node *>(data);
+        SeatNode *seat_node = seat->get_seat_node(node);
+
+        std::list<SeatNode *> &stack =
+            node->has_exclusivity() ? seat->exclusivity_stack : seat->focus_stack;
+        stack.push_front(seat_node);
+        seat->focus_node(node);
+    }
+
+    void Seat::request_cursor(Seat *seat, void *data) {
+        wlr_seat_pointer_request_set_cursor_event *event =
+            static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
+
+        if(seat->cursor.cursor_mode != cursor::CursorMode::PASSTHROUGH)
+            return;
+
+        // This event can be sent by any client so we check
+        // that it's actually being sent by the focused client
+        wlr_seat_client *focused_client = seat->seat->pointer_state.focused_client;
+        if(focused_client == event->seat_client)
+            wlr_cursor_set_surface(seat->cursor.cursor, event->surface, event->hotspot_x,
+                                   event->hotspot_y);
+    }
+
+    void Seat::request_set_selection(Seat *seat, void *data) {
+        wlr_seat_request_set_selection_event *event =
+            static_cast<wlr_seat_request_set_selection_event *>(data);
+
+        wlr_seat_set_selection(seat->seat, event->source, event->serial);
+    }
+
+    void Seat::destroy(Seat *seat, void *data) {
+        seat->request_cursor_list.free();
+        seat->request_set_selection_list.free();
+        seat->destroy_list.free();
+    }
 }
 
 namespace input {
-    void InputManager::backend_destroy(InputManager *input_manager, void *data) {
-        input_manager->new_input_list.free();
-        input_manager->backend_destroy_list.free();
+    InputDevice::InputDevice(wlr_input_device *device)
+        : device(device),
+          identifier(device_identifier(device)),
+
+          destroy_list(LISTEN(device->events.destroy, InputDevice::destroy)) {
+        device->data = this;
     }
+
+    // Called when a device of any kind is destroyed
+    void InputDevice::destroy(InputDevice *input_dev, void *data) {
+        wlr_log(WLR_DEBUG, "removing device: %s", input_dev->identifier.c_str());
+
+        server.input_manager.seat.remove_device(input_dev);
+        server.input_manager.devices.remove(input_dev);
+        delete input_dev;
+    }
+
+    InputManager::InputManager(wl_display *display, wlr_backend *backend)
+        : seat(DEFAULT_SEAT),
+          new_input_list(LISTEN(backend->events.new_input, InputManager::new_input)),
+          backend_destroy_list(LISTEN(backend->events.destroy, InputManager::backend_destroy)) {}
 
     void InputManager::new_input(InputManager *input_manager, void *data) {
         wlr_input_device *device = static_cast<wlr_input_device *>(data);
@@ -763,25 +779,8 @@ namespace input {
         input_manager->seat.add_device(input_dev);
     }
 
-    // Called when a device of any kind is destroyed
-    void InputDevice::destroy(InputDevice *input_dev, void *data) {
-        wlr_log(WLR_DEBUG, "removing device: %s", input_dev->identifier.c_str());
-
-        server.input_manager.seat.remove_device(input_dev);
-        server.input_manager.devices.remove(input_dev);
-        delete input_dev;
+    void InputManager::backend_destroy(InputManager *input_manager, void *data) {
+        input_manager->new_input_list.free();
+        input_manager->backend_destroy_list.free();
     }
-
-    InputDevice::InputDevice(wlr_input_device *device)
-        : device(device),
-          identifier(device_identifier(device)),
-
-          destroy_list(LISTEN(device->events.destroy, InputDevice::destroy)) {
-        device->data = this;
-    }
-
-    InputManager::InputManager(wl_display *display, wlr_backend *backend)
-        : seat(DEFAULT_SEAT),
-          new_input_list(LISTEN(backend->events.new_input, InputManager::new_input)),
-          backend_destroy_list(LISTEN(backend->events.destroy, InputManager::backend_destroy)) {}
 }
