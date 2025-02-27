@@ -5,21 +5,21 @@
 #include "server.hpp"
 
 namespace layer_shell {
-    void new_surface(wl_listener *listener, void *data) {
+    void new_surface(Server *server, void *data) {
         wlr_layer_surface_v1 *layer_surface = static_cast<wlr_layer_surface_v1 *>(data);
 
         if(!layer_surface->output) {
-            if(server.output_manager.outputs.empty()) {
+            if(server->output_manager.outputs.empty()) {
                 wlr_log(WLR_ERROR, "no output to assign layer surface '%s' to",
                         layer_surface->namespace_);
                 wlr_layer_surface_v1_destroy(layer_surface);
                 return;
             }
-            output::Output *output = server.output_manager.focused_output();
+            output::Output *output = server->output_manager.focused_output();
             if(output)
                 layer_surface->output = output->output;
             else
-                layer_surface->output = server.output_manager.outputs.front()->output;
+                layer_surface->output = server->output_manager.outputs.front()->output;
         }
 
         assert(layer_surface->output);
@@ -34,8 +34,7 @@ namespace layer_shell {
         new LayerSurface(scene_surface, output);
     }
 
-    void map(wl_listener *listener, void *data) {
-        LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    void LayerSurface::map(LayerSurface *surface, void *data) {
         wlr_scene_node_set_enabled(&surface->scene->tree->node, true);
 
         if(surface->layer_surface->current.keyboard_interactive !=
@@ -45,15 +44,13 @@ namespace layer_shell {
         surface->output->arrange_layers();
     }
 
-    void unmap(wl_listener *listener, void *data) {
-        LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    void LayerSurface::unmap(LayerSurface *surface, void *data) {
         wlr_scene_node_set_enabled(&surface->scene->tree->node, false);
 
         wl_signal_emit(&surface->node.events.node_destroy, static_cast<void *>(&surface->node));
     }
 
-    void surface_commit(wl_listener *listener, void *data) {
-        LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    void LayerSurface::commit(LayerSurface *surface, void *data) {
         bool rearrange = false;
         // HACK
         // TODO: actually figure out when to call this
@@ -72,17 +69,15 @@ namespace layer_shell {
         }
     }
 
-    void output_destroy(wl_listener *listener, void *data) {
-        LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    void LayerSurface::output_destroy(LayerSurface *surface, void *data) {
         wlr_layer_surface_v1_destroy(surface->layer_surface);
     }
 
-    void destroy(wl_listener *listener, void *data) {
-        delete static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    void LayerSurface::destroy(LayerSurface *surface, void *data) {
+        delete surface;
     }
 
-    void new_popup(wl_listener *listener, void *data) {
-        LayerSurface *surface = static_cast<wrapper::Listener<LayerSurface> *>(listener)->container;
+    void LayerSurface::new_popup(LayerSurface *surface, void *data) {
         wlr_xdg_popup *xdg_popup = static_cast<wlr_xdg_popup *>(data);
 
         surface->popups.push_back(new xdg_shell::Popup(xdg_popup, surface->scene->tree));
@@ -96,12 +91,12 @@ namespace layer_shell {
           popup_tree(wlr_scene_tree_create(server.root.layer_popups)),
           tree(scene->tree),
 
-          map(this, layer_shell::map, &layer_surface->surface->events.map),
-          unmap(this, layer_shell::unmap, &layer_surface->surface->events.unmap),
-          surface_commit(this, layer_shell::surface_commit, &layer_surface->surface->events.commit),
-          output_destroy(this, layer_shell::output_destroy, &output->output->events.destroy),
-          node_destroy(this, layer_shell::destroy, &layer_surface->events.destroy),
-          new_popup(this, layer_shell::new_popup, &layer_surface->events.new_popup) {
+          map_list(LISTEN(layer_surface->surface->events.map, LayerSurface::map)),
+          unmap_list(LISTEN(layer_surface->surface->events.unmap, LayerSurface::unmap)),
+          commit_list(LISTEN(layer_surface->surface->events.commit, LayerSurface::commit)),
+          output_destroy_list(LISTEN(output->output->events.destroy, LayerSurface::output_destroy)),
+          destroy_list(LISTEN(layer_surface->events.destroy, LayerSurface::destroy)),
+          new_popup_list(LISTEN(layer_surface->events.new_popup, LayerSurface::new_popup)) {
         layer_surface->data = this;
         tree->node.data = this;
     }

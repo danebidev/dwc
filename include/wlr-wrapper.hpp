@@ -26,10 +26,10 @@ namespace wrapper {
         void free();
 
         private:
-        bool connected();
         void emit(void* data);
 
         Container* container;
         Callback callback;
+        bool connected;
     };
 }

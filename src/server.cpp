@@ -11,21 +11,6 @@
 
 Server server;
 
-void backend_destroy(wl_listener* listener, void* data) {
-    server.listeners.new_output.free();
-    server.listeners.backend_destroy.free();
-}
-
-void xdg_shell_destroy(wl_listener* listener, void* data) {
-    server.listeners.new_xdg_toplevel.free();
-    server.listeners.xdg_shell_destroy.free();
-}
-
-void layer_shell_destroy(wl_listener* listener, void* data) {
-    server.listeners.new_layer_shell_surface.free();
-    server.listeners.layer_shell_destroy.free();
-}
-
 Server::Server()
     :  // wl_display global.
        // Needed for the registry and the creation of more objects
@@ -64,13 +49,13 @@ Server::Server()
 
       // Listeners
       new_output(this, &backend->events.new_output, output::new_output),
-      new_xdg_toplevel(this, xdg_shell::new_xdg_toplevel, &xdg_shell->events.new_toplevel),
-      new_layer_shell_surface(this, layer_shell::new_surface, &layer_shell->events.new_surface),
+      new_xdg_toplevel(this, &xdg_shell->events.new_toplevel, xdg_shell::new_xdg_toplevel),
+      new_layer_shell_surface(this, &layer_shell->events.new_surface, layer_shell::new_surface),
 
       // Cleanup listeners
-      backend_destroy_list(this, ::backend_destroy, &backend->events.destroy),
-      xdg_shell_destroy_list(this, ::xdg_shell_destroy, &xdg_shell->events.destroy),
-      layer_shell_destroy_list(this, ::layer_shell_destroy, &layer_shell->events.destroy) {
+      backend_destroy_list(LISTEN(backend->events.destroy, Server::backend_destroy)),
+      xdg_shell_destroy_list(LISTEN(xdg_shell->events.destroy, Server::xdg_shell_destroy)),
+      layer_shell_destroy_list(LISTEN(layer_shell->events.destroy, Server::layer_shell_destroy)) {
     if(!backend)
         throw std::runtime_error("failed to create wlr_backend");
 
@@ -184,4 +169,19 @@ layer_shell::LayerSurface* Server::layer_surface_at(double lx, double ly, wlr_su
         return layer_surface;
     else
         return nullptr;
+}
+
+void Server::backend_destroy(Server* server, void* data) {
+    new_output.free();
+    backend_destroy_list.free();
+}
+
+void Server::xdg_shell_destroy(Server* server, void* data) {
+    new_xdg_toplevel.free();
+    xdg_shell_destroy_list.free();
+}
+
+void Server::layer_shell_destroy(Server* listener, void* data) {
+    new_layer_shell_surface.free();
+    layer_shell_destroy_list.free();
 }

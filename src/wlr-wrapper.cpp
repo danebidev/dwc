@@ -13,7 +13,8 @@ namespace wrapper {
     }
 
     template <typename T>
-    Listener<T>::Listener(T* container, wl_signal* signal, const Callback& callback) {
+    Listener<T>::Listener(T* container, wl_signal* signal, const Callback& callback)
+        : connected(false) {
         wl_list_init(&listener.link);
         init(container, signal, callback);
     }
@@ -25,24 +26,22 @@ namespace wrapper {
 
     template <typename T>
     void Listener<T>::init(T* cont, wl_signal* signal, const Callback& cb) {
-        assert(!connected());
+        assert(!connected);
 
         container = cont;
         callback = cb;
         listener.notify = handle<T>;
 
         wl_signal_add(signal, &listener);
+        connected = true;
     }
 
     template <typename T>
     void Listener<T>::free() {
-        if(!connected())
+        if(connected) {
             wl_list_remove(&listener.link);
-    }
-
-    template <typename T>
-    bool Listener<T>::connected() {
-        return !wl_list_empty(&listener.link);
+            connected = false;
+        }
     }
 
     template <typename T>

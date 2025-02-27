@@ -6,7 +6,7 @@
 #include "xdg-shell.hpp"
 
 namespace layer_shell {
-    void new_surface(wl_listener* listener, void* data);
+    void new_surface(Server* server, void* data);
 
     class LayerSurface {
         public:
@@ -26,11 +26,18 @@ namespace layer_shell {
         wlr_scene_tree* popup_tree;
         wlr_scene_tree* tree;
 
-        wrapper::Listener<LayerSurface> map;
-        wrapper::Listener<LayerSurface> unmap;
-        wrapper::Listener<LayerSurface> surface_commit;
-        wrapper::Listener<LayerSurface> output_destroy;
-        wrapper::Listener<LayerSurface> node_destroy;
-        wrapper::Listener<LayerSurface> new_popup;
+        wrapper::Listener<LayerSurface> map_list;
+        wrapper::Listener<LayerSurface> unmap_list;
+        wrapper::Listener<LayerSurface> commit_list;
+        wrapper::Listener<LayerSurface> output_destroy_list;
+        wrapper::Listener<LayerSurface> destroy_list;
+        wrapper::Listener<LayerSurface> new_popup_list;
+
+        void map(LayerSurface* surface, void* data);
+        void unmap(LayerSurface* surface, void* data);
+        void commit(LayerSurface* surface, void* data);
+        void output_destroy(LayerSurface* surface, void* data);
+        void destroy(LayerSurface* surface, void* data);
+        void new_popup(LayerSurface* surface, void* data);
     };
 }

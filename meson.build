@@ -76,6 +76,7 @@ libs = [
 sources = [
   'src/config/config.cpp',
   'src/config/commands.cpp',
+  'src/wlr-wrapper.cpp',
   'src/util.cpp',
   'src/main.cpp',
   'src/workspace.cpp',

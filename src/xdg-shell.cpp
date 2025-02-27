@@ -6,16 +6,13 @@
 #include "server.hpp"
 
 namespace xdg_shell {
-    void new_xdg_toplevel(wl_listener* listener, void* data) {
+    void new_xdg_toplevel(Server* listener, void* data) {
         wlr_xdg_toplevel* xdg_toplevel = static_cast<wlr_xdg_toplevel*>(data);
 
         new Toplevel(xdg_toplevel);
     }
 
-    // Called when a surface gets mapped
-    void xdg_toplevel_map(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-
+    void Toplevel::map(Toplevel* toplevel, void* data) {
         output::Output* output = server.output_manager.focused_output();
         if(!output && !server.output_manager.outputs.empty())
             output = server.output_manager.outputs.front();
@@ -61,9 +58,7 @@ namespace xdg_shell {
     }
 
     // Called when an xdg_toplevel gets unmapped
-    void xdg_toplevel_unmap(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-
+    void Toplevel::unmap(Toplevel* toplevel, void* data) {
         // Reset cursor mode if the toplevel was currently grabbed
         if(toplevel == server.input_manager.seat.cursor.grabbed_toplevel)
             server.input_manager.seat.cursor.reset_cursor_mode();
@@ -80,64 +75,41 @@ namespace xdg_shell {
             toplevel->workspace->focused_toplevel = nullptr;
     }
 
-    // Called when a commit gets applied to a toplevel
-    void xdg_toplevel_commit(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-
+    void Toplevel::commit(Toplevel* toplevel, void* data) {
         if(toplevel->toplevel->base->initial_commit)
             // Set size to 0,0 so the client can choose the size
             wlr_xdg_toplevel_set_size(toplevel->toplevel, 0, 0);
     }
 
-    // Called when an xdg_toplevel gets destroyed
-    void xdg_toplevel_destroy(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    void Toplevel::destroy(Toplevel* toplevel, void* data) {
         delete toplevel;
     }
 
-    // Called when an xdg_toplevel requests a move
-    void xdg_toplevel_request_move(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    void Toplevel::request_move(Toplevel* toplevel, void* data) {
         server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::MOVE, 0);
     }
 
-    // Called when an xdg_toplevel requests a resize
-    void xdg_toplevel_request_resize(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    void Toplevel::request_resize(Toplevel* toplevel, void* data) {
         wlr_xdg_toplevel_resize_event* event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
         server.input_manager.seat.cursor.begin_interactive(toplevel, cursor::CursorMode::RESIZE,
                                                            event->edges);
     }
 
-    // Called when an xdg_toplevel requests to be maximized
-    void xdg_toplevel_request_maximize(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
-        toplevel->fullscreen();
-    }
-
-    // Called when an xdg_toplevel requests to be minimized
-    void xdg_toplevel_request_minimize(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    void Toplevel::request_minimize(Toplevel* toplevel, void* data) {
         if(toplevel->toplevel->base->initialized)
             wlr_xdg_surface_schedule_configure(toplevel->toplevel->base);
     }
 
-    // Called when an xdg_toplevel requests fullscreen
-    void xdg_toplevel_request_fullscreen(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    void Toplevel::request_fullscreen(Toplevel* toplevel, void* data) {
         toplevel->fullscreen();
     }
 
-    // Called when a popup is created by a client
-    void xdg_toplevel_new_popup(wl_listener* listener, void* data) {
-        Toplevel* toplevel = static_cast<wrapper::Listener<Toplevel>*>(listener)->container;
+    void Toplevel::new_popup(Toplevel* toplevel, void* data) {
         wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
-
         new Popup(xdg_popup, toplevel->scene_tree);
     }
 
-    void xdg_popup_commit(wl_listener* listener, void* data) {
-        Popup* popup = static_cast<wrapper::Listener<Popup>*>(listener)->container;
+    void Popup::commit(Popup* popup, void* data) {
         output::Output* output = server.output_manager.focused_output();
 
         if(!output)
@@ -161,14 +133,12 @@ namespace xdg_shell {
             wlr_xdg_surface_schedule_configure(popup->popup->base);
     }
 
-    void xdg_popup_destroy(wl_listener* listener, void* data) {
-        delete static_cast<wrapper::Listener<Popup>*>(listener)->container;
+    void Popup::destroy(Popup* popup, void* data) {
+        delete popup;
     }
 
-    void xdg_popup_new_popup(wl_listener* listener, void* data) {
-        Popup* popup = static_cast<wrapper::Listener<Popup>*>(listener)->container;
+    void Popup::new_popup(Popup* popup, void* data) {
         wlr_xdg_popup* xdg_popup = static_cast<wlr_xdg_popup*>(data);
-
         new Popup(xdg_popup, popup->scene);
     }
 
@@ -178,19 +148,21 @@ namespace xdg_shell {
           scene_tree(wlr_scene_xdg_surface_create(server.root.floating, toplevel->base)),
           workspace(nullptr),
 
-          map(this, xdg_toplevel_map, &toplevel->base->surface->events.map),
-          unmap(this, xdg_toplevel_unmap, &toplevel->base->surface->events.unmap),
-          commit(this, xdg_toplevel_commit, &toplevel->base->surface->events.commit),
-          destroy(this, xdg_toplevel_destroy, &toplevel->events.destroy),
+          map_list(LISTEN(toplevel->base->surface->events.map, Toplevel::map)),
+          unmap_list(LISTEN(toplevel->base->surface->events.unmap, Toplevel::unmap)),
+          commit_list(LISTEN(toplevel->base->surface->events.commit, Toplevel::commit)),
+          destroy_list(LISTEN(toplevel->events.destroy, Toplevel::destroy)),
 
-          request_move(this, xdg_toplevel_request_move, &toplevel->events.request_move),
-          request_resize(this, xdg_toplevel_request_resize, &toplevel->events.request_resize),
-          request_maximize(this, xdg_toplevel_request_maximize, &toplevel->events.request_maximize),
-          request_minimize(this, xdg_toplevel_request_minimize, &toplevel->events.request_minimize),
-          request_fullscreen(this, xdg_toplevel_request_fullscreen,
-                             &toplevel->events.request_fullscreen),
+          new_popup_list(LISTEN(toplevel->base->events.new_popup, Toplevel::new_popup)),
 
-          new_popup(this, xdg_toplevel_new_popup, &toplevel->base->events.new_popup) {
+          request_move_list(LISTEN(toplevel->events.request_move, Toplevel::request_move)),
+          request_resize_list(LISTEN(toplevel->events.request_resize, Toplevel::request_resize)),
+          request_maximize_list(
+              LISTEN(toplevel->events.request_maximize, Toplevel::request_fullscreen)),
+          request_minimize_list(
+              LISTEN(toplevel->events.request_minimize, Toplevel::request_minimize)),
+          request_fullscreen_list(
+              LISTEN(toplevel->events.request_fullscreen, Toplevel::request_fullscreen)) {
         toplevel->base->data = scene_tree;
         scene_tree->node.data = this;
     }
@@ -247,9 +219,9 @@ namespace xdg_shell {
 
           scene(wlr_scene_xdg_surface_create(parent_tree, popup->base)),
 
-          commit(this, xdg_popup_commit, &popup->base->surface->events.commit),
-          destroy(this, xdg_popup_destroy, &popup->events.destroy),
-          new_popup(this, xdg_popup_new_popup, &popup->base->events.new_popup) {
+          commit_list(LISTEN(popup->base->surface->events.commit, Popup::commit)),
+          destroy_list(LISTEN(popup->events.destroy, Popup::destroy)),
+          new_popup_list(LISTEN(popup->base->events.new_popup, Popup::new_popup)) {
         xdg_popup->base->data = scene;
     }
 }

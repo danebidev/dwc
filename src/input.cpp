@@ -14,18 +14,14 @@
 #define DEFAULT_SEAT "seat0"
 
 namespace cursor {
-    // Called when a pointer emits a relative pointer motion event
-    void motion(wl_listener *listener, void *data) {
-        Cursor *cursor = static_cast<wrapper::Listener<Cursor> *>(listener)->container;
+    void Cursor::motion(Cursor *cursor, void *data) {
         wlr_pointer_motion_event *event = static_cast<wlr_pointer_motion_event *>(data);
 
         wlr_cursor_move(cursor->cursor, &event->pointer->base, event->delta_x, event->delta_y);
         cursor->process_motion(event->time_msec);
     }
 
-    // Called when a pointer emits an absolute pointer motion event
-    void motion_absolute(wl_listener *listener, void *data) {
-        Cursor *cursor = static_cast<wrapper::Listener<Cursor> *>(listener)->container;
+    void Cursor::motion_absolute(Cursor *cursor, void *data) {
         wlr_pointer_motion_absolute_event *event =
             static_cast<wlr_pointer_motion_absolute_event *>(data);
 
@@ -33,9 +29,7 @@ namespace cursor {
         cursor->process_motion(event->time_msec);
     }
 
-    // Called when a pointer emits a button event
-    void button(wl_listener *listener, void *data) {
-        Cursor *cursor = static_cast<wrapper::Listener<Cursor> *>(listener)->container;
+    void Cursor::button(Cursor *cursor, void *data) {
         wlr_pointer_button_event *event = static_cast<wlr_pointer_button_event *>(data);
         wlr_seat_pointer_notify_button(server.input_manager.seat.seat, event->time_msec,
                                        event->button, event->state);
@@ -63,8 +57,7 @@ namespace cursor {
         }
     }
 
-    // Called when a pointer emits an axis event, like a mouse wheel scroll
-    void axis(wl_listener *listener, void *data) {
+    void Cursor::axis(Cursor *cursor, void *data) {
         wlr_pointer_axis_event *event = static_cast<wlr_pointer_axis_event *>(data);
 
         wlr_seat_pointer_notify_axis(server.input_manager.seat.seat, event->time_msec,
@@ -72,10 +65,7 @@ namespace cursor {
                                      event->source, event->relative_direction);
     }
 
-    // Called when a pointer emits a frame event
-    // Frame events are sent after regular pointer events
-    // to group multiple events together
-    void frame(wl_listener *listener, void *data) {
+    void Cursor::frame(Cursor *cursor, void *data) {
         wlr_seat_pointer_notify_frame(server.input_manager.seat.seat);
     }
 
@@ -85,20 +75,20 @@ namespace cursor {
           xcursor_mgr(wlr_xcursor_manager_create("default", 24)),
           current_workspace(nullptr),
 
-          motion(this, cursor::motion, &cursor->events.motion),
-          motion_absolute(this, cursor::motion_absolute, &cursor->events.motion_absolute),
-          button(this, cursor::button, &cursor->events.button),
-          axis(this, cursor::axis, &cursor->events.axis),
-          frame(this, cursor::frame, &cursor->events.frame) {
+          motion_list(LISTEN(cursor->events.motion, Cursor::motion)),
+          motion_absolute_list(LISTEN(cursor->events.motion_absolute, Cursor::motion_absolute)),
+          button_list(LISTEN(cursor->events.button, Cursor::button)),
+          axis_list(LISTEN(cursor->events.axis, Cursor::axis)),
+          frame_list(LISTEN(cursor->events.frame, Cursor::frame)) {
         wlr_cursor_attach_output_layout(cursor, server.root.output_layout);
     }
 
     Cursor::~Cursor() {
-        motion.free();
-        motion_absolute.free();
-        button.free();
-        axis.free();
-        frame.free();
+        motion_list.free();
+        motion_absolute_list.free();
+        button_list.free();
+        axis_list.free();
+        frame_list.free();
 
         wlr_xcursor_manager_destroy(xcursor_mgr);
         wlr_cursor_destroy(cursor);
@@ -282,18 +272,13 @@ namespace keyboard {
         return false;
     }
 
-    // Called when a modifier key (ctrl, shift, alt, etc.) is pressed
-    void modifiers(wl_listener *listener, void *data) {
-        Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
-
+    void Keyboard::modifiers(Keyboard *keyboard, void *data) {
         wlr_seat_set_keyboard(server.input_manager.seat.seat, keyboard->keyboard);
         wlr_seat_keyboard_notify_modifiers(server.input_manager.seat.seat,
                                            &keyboard->keyboard->modifiers);
     }
 
-    // Called when a key is pressed or released
-    void key(wl_listener *listener, void *data) {
-        Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
+    void Keyboard::key(Keyboard *keyboard, void *data) {
         wlr_keyboard_key_event *event = static_cast<wlr_keyboard_key_event *>(data);
 
         // libinput keycode -> xkbcommon
@@ -339,9 +324,7 @@ namespace keyboard {
         }
     }
 
-    // Called when a keyboard is destroyed
-    void destroy(wl_listener *listener, void *data) {
-        Keyboard *keyboard = static_cast<wrapper::Listener<Keyboard> *>(listener)->container;
+    void Keyboard::destroy(Keyboard *keyboard, void *data) {
         delete keyboard;
     }
 
@@ -349,9 +332,9 @@ namespace keyboard {
         : keyboard(wlr_keyboard_from_input_device(device->device->device)),
           seat_dev(device),
 
-          modifiers(this, keyboard::modifiers, &keyboard->events.modifiers),
-          key(this, keyboard::key, &keyboard->events.key),
-          destroy(this, keyboard::destroy, &keyboard->base.events.destroy) {
+          modifiers_list(LISTEN(keyboard->events.modifiers, Keyboard::modifiers)),
+          key_list(LISTEN(keyboard->events.key, Keyboard::key)),
+          destroy_list(LISTEN(keyboard->base.events.destroy, Keyboard::destroy)) {
         keyboard->data = this;
     }
 
@@ -415,8 +398,7 @@ namespace keyboard {
 
 namespace seat {
     // Called when a seat node is destroyed
-    void seat_node_destroy(wl_listener *listener, void *data) {
-        SeatNode *seat_node = static_cast<wrapper::Listener<SeatNode> *>(listener)->container;
+    void SeatNode::destroy(SeatNode *seat_node, void *data) {
         Seat *seat = seat_node->seat;
 
         bool had_focus = false;
@@ -441,9 +423,7 @@ namespace seat {
         seat->focus_node(focus->node);
     }
 
-    // Called by the root when a new node is added to the tree
-    void new_node(wl_listener *listener, void *data) {
-        Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
+    void Seat::new_node(Seat *seat, void *data) {
         nodes::Node *node = static_cast<nodes::Node *>(data);
         SeatNode *seat_node = seat->get_seat_node(node);
 
@@ -453,9 +433,7 @@ namespace seat {
         seat->focus_node(node);
     }
 
-    // Called by the seat when a client wants to set the cursor image
-    void request_cursor(wl_listener *listener, void *data) {
-        Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
+    void Seat::request_cursor(Seat *seat, void *data) {
         wlr_seat_pointer_request_set_cursor_event *event =
             static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
 
@@ -470,22 +448,17 @@ namespace seat {
                                    event->hotspot_y);
     }
 
-    // Called by the seat when a client wants to set the selection
-    void request_set_selection(wl_listener *listener, void *data) {
-        Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
+    void Seat::request_set_selection(Seat *seat, void *data) {
         wlr_seat_request_set_selection_event *event =
             static_cast<wlr_seat_request_set_selection_event *>(data);
 
         wlr_seat_set_selection(seat->seat, event->source, event->serial);
     }
 
-    // Called when a seat is destroyed
-    void destroy(wl_listener *listener, void *data) {
-        Seat *seat = static_cast<wrapper::Listener<Seat> *>(listener)->container;
-
-        seat->request_cursor.free();
-        seat->request_set_selection.free();
-        seat->destroy.free();
+    void Seat::destroy(Seat *seat, void *data) {
+        seat->request_cursor_list.free();
+        seat->request_set_selection_list.free();
+        seat->destroy_list.free();
     }
 
     SeatDevice::SeatDevice(input::InputDevice *device)
@@ -496,7 +469,7 @@ namespace seat {
         : node(node),
           seat(seat),
 
-          destroy(this, seat::seat_node_destroy, &node->events.node_destroy) {}
+          destroy_list(LISTEN(node->events.node_destroy, SeatNode::destroy)) {}
 
     SeatNode::~SeatNode() {
         std::list<SeatNode *> &stack =
@@ -517,11 +490,11 @@ namespace seat {
           scene_tree(wlr_scene_tree_create(server.root.seat)),
           /*drag_icons(wlr_scene_tree_create(scene_tree)),*/
 
-          new_node(this, seat::new_node, &server.root.events.new_node),
-          request_cursor(this, seat::request_cursor, &seat->events.request_set_cursor),
-          request_set_selection(this, seat::request_set_selection,
-                                &seat->events.request_set_selection),
-          destroy(this, seat::destroy, &seat->events.destroy) {
+          new_node_list(LISTEN(server.root.events.new_node, Seat::new_node)),
+          request_cursor_list(LISTEN(seat->events.request_set_cursor, Seat::request_cursor)),
+          request_set_selection_list(
+              LISTEN(seat->events.request_set_selection, Seat::request_set_selection)),
+          destroy_list(LISTEN(seat->events.destroy, Seat::destroy)) {
         seat->data = this;
     }
 
@@ -774,16 +747,12 @@ namespace seat {
 }
 
 namespace input {
-    void backend_destroy(wl_listener *listener, void *data) {
-        InputManager *input = static_cast<wrapper::Listener<InputManager> *>(listener)->container;
-        input->new_input.free();
-        input->backend_destroy.free();
+    void InputManager::backend_destroy(InputManager *input_manager, void *data) {
+        input_manager->new_input_list.free();
+        input_manager->backend_destroy_list.free();
     }
 
-    // Called when a new input is made available by the backend
-    void new_input(wl_listener *listener, void *data) {
-        InputManager *input_manager =
-            static_cast<wrapper::Listener<InputManager> *>(listener)->container;
+    void InputManager::new_input(InputManager *input_manager, void *data) {
         wlr_input_device *device = static_cast<wlr_input_device *>(data);
 
         InputDevice *input_dev = new InputDevice(device);
@@ -795,9 +764,7 @@ namespace input {
     }
 
     // Called when a device of any kind is destroyed
-    void device_destroy(wl_listener *listener, void *data) {
-        InputDevice *input_dev = static_cast<wrapper::Listener<InputDevice> *>(listener)->container;
-
+    void InputDevice::destroy(InputDevice *input_dev, void *data) {
         wlr_log(WLR_DEBUG, "removing device: %s", input_dev->identifier.c_str());
 
         server.input_manager.seat.remove_device(input_dev);
@@ -808,12 +775,13 @@ namespace input {
     InputDevice::InputDevice(wlr_input_device *device)
         : device(device),
           identifier(device_identifier(device)),
-          destroy(this, input::device_destroy, &device->events.destroy) {
+
+          destroy_list(LISTEN(device->events.destroy, InputDevice::destroy)) {
         device->data = this;
     }
 
     InputManager::InputManager(wl_display *display, wlr_backend *backend)
         : seat(DEFAULT_SEAT),
-          new_input(this, input::new_input, &backend->events.new_input),
-          backend_destroy(this, input::backend_destroy, &backend->events.destroy) {}
+          new_input_list(LISTEN(backend->events.new_input, InputManager::new_input)),
+          backend_destroy_list(LISTEN(backend->events.destroy, InputManager::backend_destroy)) {}
 }

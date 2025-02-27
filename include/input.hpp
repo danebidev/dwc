@@ -22,12 +22,6 @@ namespace cursor {
     enum class CursorMode { PASSTHROUGH, MOVE, RESIZE };
 
     class Cursor {
-        friend void motion(wl_listener*, void*);
-        friend void motion_absolute(wl_listener*, void*);
-        friend void button(wl_listener*, void*);
-        friend void axis(wl_listener*, void*);
-        friend void frame(wl_listener*, void*);
-
         public:
         // wlr utility to manage the cursor image
         // Can attach multiple input devices to it
@@ -64,11 +58,11 @@ namespace cursor {
         wlr_box grab_geobox;
         uint32_t resize_edges;
 
-        wrapper::Listener<Cursor> motion;
-        wrapper::Listener<Cursor> motion_absolute;
-        wrapper::Listener<Cursor> button;
-        wrapper::Listener<Cursor> axis;
-        wrapper::Listener<Cursor> frame;
+        wrapper::Listener<Cursor> motion_list;
+        wrapper::Listener<Cursor> motion_absolute_list;
+        wrapper::Listener<Cursor> button_list;
+        wrapper::Listener<Cursor> axis_list;
+        wrapper::Listener<Cursor> frame_list;
 
         // Should be called whenever the cursor moves for any reason
         void process_motion(uint32_t time);
@@ -76,15 +70,24 @@ namespace cursor {
         void process_cursor_move();
         // Handles toplevel resize
         void process_cursor_resize();
+
+        // Called when a pointer emits a relative pointer motion event
+        void motion(Cursor* cursor, void* data);
+        // Called when a pointer emits an absolute pointer motion event
+        void motion_absolute(Cursor* cursor, void* data);
+        // Called when a pointer emits a button event
+        void button(Cursor* cursor, void* data);
+        // Called when a pointer emits an axis event, like a mouse wheel scroll
+        void axis(Cursor* cursor, void* data);
+        // Called when a pointer emits a frame event
+        // Frame events are sent after regular pointer events
+        // to group multiple events together
+        void frame(Cursor* cursor, void* data);
     };
 }
 
 namespace keyboard {
     class Keyboard {
-        friend void modifiers(wl_listener*, void*);
-        friend void key(wl_listener*, void*);
-        friend void destroy(wl_listener*, void*);
-
         public:
         wlr_keyboard* keyboard;
 
@@ -100,22 +103,27 @@ namespace keyboard {
         int repeat_rate;
         int repeat_delay;
 
-        wrapper::Listener<Keyboard> modifiers;
-        wrapper::Listener<Keyboard> key;
-        wrapper::Listener<Keyboard> destroy;
+        wrapper::Listener<Keyboard> modifiers_list;
+        wrapper::Listener<Keyboard> key_list;
+        wrapper::Listener<Keyboard> destroy_list;
 
         uint32_t keysyms_raw(xkb_keycode_t keycode, const xkb_keysym_t** keysyms);
         uint32_t keysyms_translated(xkb_keycode_t keycode, const xkb_keysym_t** keysyms,
                                     uint32_t* modifiers);
         bool exec_compositor_binding(const xkb_keysym_t* pressed_keysyms, uint32_t modifiers,
                                      size_t keysyms_len);
+
+        // Called when a modifier key (ctrl, shift, alt, etc.) is pressed
+        void modifiers(Keyboard* keyboard, void* data);
+        // Called when a key is pressed or released
+        void key(Keyboard* keyboard, void* data);
+        // Called when a keyboard is destroyed
+        void destroy(Keyboard* keyboard, void* data);
     };
 }
 
 namespace seat {
     class SeatNode {
-        friend void seat_node_destroy(wl_listener*, void*);
-
         public:
         nodes::Node* node;
 
@@ -126,7 +134,9 @@ namespace seat {
         // Keep track of the seat, so we can update the focus stack
         seat::Seat* seat;
 
-        wrapper::Listener<SeatNode> destroy;
+        wrapper::Listener<SeatNode> destroy_list;
+
+        void destroy(SeatNode* seat_node, void* data);
     };
 
     class SeatDevice {
@@ -140,11 +150,6 @@ namespace seat {
     };
 
     class Seat {
-        friend void new_node(wl_listener*, void*);
-        friend void request_cursor(wl_listener* listener, void* data);
-        friend void request_set_selection(wl_listener* listener, void* data);
-        friend void destroy(wl_listener* listener, void* data);
-
         public:
         wlr_seat* seat;
         cursor::Cursor cursor;
@@ -172,11 +177,10 @@ namespace seat {
         wlr_scene_tree* scene_tree;
         /*wlr_scene_tree* drag_icons;*/
 
-        wrapper::Listener<Seat> new_node;
-        wrapper::Listener<Seat> request_cursor;
-        wrapper::Listener<Seat> request_set_selection;
-
-        wrapper::Listener<Seat> destroy;
+        wrapper::Listener<Seat> new_node_list;
+        wrapper::Listener<Seat> request_cursor_list;
+        wrapper::Listener<Seat> request_set_selection_list;
+        wrapper::Listener<Seat> destroy_list;
 
         // Gets or creates a new seat node from the root node
         SeatNode* get_seat_node(nodes::Node* node);
@@ -209,6 +213,15 @@ namespace seat {
         // Updates capabilities based on current seat devices
         // Should be called whenever seat devices change
         void update_capabilities();
+
+        // Called by the root when a new node is added to the tree
+        void new_node(Seat* seat, void* data);
+        // Called by the seat when a client wants to set the cursor image
+        void request_cursor(Seat* seat, void* data);
+        // Called by the seat when a client wants to set the selection
+        void request_set_selection(Seat* seat, void* data);
+        // Called when a seat is destroyed
+        void destroy(Seat* seat, void* data);
     };
 
 }
@@ -229,12 +242,12 @@ namespace input {
         InputDevice(wlr_input_device* device);
 
         private:
-        wrapper::Listener<InputDevice> destroy;
+        wrapper::Listener<InputDevice> destroy_list;
+
+        void destroy(InputDevice* input_dev, void* data);
     };
 
     class InputManager {
-        friend void input::backend_destroy(wl_listener*, void*);
-
         public:
         // Multi-seat support is pain, so it's currently single-seat
         seat::Seat seat;
@@ -245,7 +258,11 @@ namespace input {
         InputManager(wl_display* display, wlr_backend* backend);
 
         private:
-        wrapper::Listener<InputManager> new_input;
-        wrapper::Listener<InputManager> backend_destroy;
+        wrapper::Listener<InputManager> new_input_list;
+        wrapper::Listener<InputManager> backend_destroy_list;
+
+        // Called when a new input is made available by the backend
+        void new_input(InputManager* input_manager, void* data);
+        void backend_destroy(InputManager* input_manager, void* data);
     };
 }

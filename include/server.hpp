@@ -10,10 +10,6 @@
 #include "xdg-shell.hpp"
 
 class Server {
-    void backend_destroy(wl_listener*, void*);
-    void xdg_shell_destroy(wl_listener*, void*);
-    void layer_shell_destroy(wl_listener*, void*);
-
     public:
     // Globals
     wl_display* display;
@@ -52,14 +48,18 @@ class Server {
                                                 double& sx, double& sy);
 
     private:
-    wrapper::Listener new_output;
-    wrapper::Listener new_xdg_toplevel;
-    wrapper::Listener new_layer_shell_surface;
+    wrapper::Listener<Server> new_output;
+    wrapper::Listener<Server> new_xdg_toplevel;
+    wrapper::Listener<Server> new_layer_shell_surface;
 
     // Cleanup listeners
-    wrapper::Listener backend_destroy_list;
-    wrapper::Listener xdg_shell_destroy_list;
-    wrapper::Listener layer_shell_destroy_list;
+    wrapper::Listener<Server> backend_destroy_list;
+    wrapper::Listener<Server> xdg_shell_destroy_list;
+    wrapper::Listener<Server> layer_shell_destroy_list;
+
+    void backend_destroy(Server*, void*);
+    void xdg_shell_destroy(Server*, void*);
+    void layer_shell_destroy(Server*, void*);
 };
 
 extern Server server;

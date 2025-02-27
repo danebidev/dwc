@@ -10,81 +10,9 @@
 #include "server.hpp"
 
 namespace output {
-    void new_output(wl_listener *listener, void *data) {
+    void new_output(Server *, void *data) {
         wlr_output *wlr_output = static_cast<struct wlr_output *>(data);
         new Output(wlr_output);
-    }
-
-    void layout_update(wl_listener *listener, void *data) {
-        wlr_output_configuration_v1 *config = wlr_output_configuration_v1_create();
-
-        for(Output *output : server.output_manager.outputs) {
-            // Get the config head for each output
-            assert(output->output);
-            wlr_output_configuration_head_v1 *config_head =
-                wlr_output_configuration_head_v1_create(config, output->output);
-
-            struct wlr_box output_box;
-            wlr_output_layout_get_box(server.root.output_layout, output->output, &output_box);
-
-            // Mark the output enabled if it's swithed off but not disabled
-            config_head->state.enabled = !wlr_box_empty(&output_box);
-            config_head->state.x = output_box.x;
-            config_head->state.y = output_box.y;
-        }
-
-        // Update the configuration
-        wlr_output_manager_v1_set_configuration(server.output_manager_v1, config);
-    }
-
-    void output_test(wl_listener *listener, void *data) {
-        server.output_manager.apply_output_config(static_cast<wlr_output_configuration_v1 *>(data),
-                                                  true);
-    }
-
-    void output_apply(wl_listener *listener, void *data) {
-        server.output_manager.apply_output_config(static_cast<wlr_output_configuration_v1 *>(data),
-                                                  false);
-    }
-
-    // Called whenever an output wants to display a frame
-    // Generally should be at the output's refresh rate
-    void frame(wl_listener *listener, void *data) {
-        Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-        wlr_scene *scene = server.root.scene;
-        wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->output);
-
-        wlr_scene_output_commit(scene_output, nullptr);
-
-        timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        wlr_scene_output_send_frame_done(scene_output, &now);
-    }
-
-    // Called when the backend request a new state
-    // For example, resizing a window in the X11 or wayland backend
-    void request_state(wl_listener *listener, void *data) {
-        Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-        const wlr_output_event_request_state *event =
-            static_cast<wlr_output_event_request_state *>(data);
-
-        wlr_output_commit_state(output->output, event->state);
-
-        output->arrange_layers();
-        output->update_position();
-        server.root.arrange();
-
-        for(auto &ws : output->workspaces) {
-            if(ws->fullscreen)
-                ws->focused_toplevel->update_fullscreen();
-        }
-    }
-
-    // Called when an output is destroyed
-    void output_destroy(wl_listener *listener, void *data) {
-        Output *output = static_cast<wrapper::Listener<Output> *>(listener)->container;
-        server.output_manager.outputs.remove(output);
-        delete output;
     }
 
     Output::Output(wlr_output *output)
@@ -93,9 +21,9 @@ namespace output {
           scene_output(wlr_scene_output_create(server.root.scene, output)),
           active_workspace(nullptr),
 
-          frame(this, output::frame, &output->events.frame),
-          request_state(this, output::request_state, &output->events.request_state),
-          destroy(this, output::output_destroy, &output->events.destroy) {
+          frame_list(LISTEN(output->events.frame, Output::frame)),
+          request_state_list(LISTEN(output->events.request_state, Output::request_state)),
+          destroy_list(LISTEN(output->events.destroy, Output::destroy)) {
         output->data = this;
 
         // Configures the output to use our allocator and renderer
@@ -272,28 +200,47 @@ namespace output {
         }
     }
 
-    void output_layout_destroy(wl_listener *listener, void *data) {
-        OutputManager *out = static_cast<wrapper::Listener<OutputManager> *>(listener)->container;
-        out->layout_update.free();
-        out->output_layout_destroy.free();
+    void Output::frame(Output *output, void *data) {
+        wlr_scene *scene = server.root.scene;
+        wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->output);
+
+        wlr_scene_output_commit(scene_output, nullptr);
+
+        timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        wlr_scene_output_send_frame_done(scene_output, &now);
     }
 
-    void output_manager_destroy(wl_listener *listener, void *data) {
-        OutputManager *out = static_cast<wrapper::Listener<OutputManager> *>(listener)->container;
-        out->output_test.free();
-        out->output_apply.free();
-        out->output_manager_destroy.free();
+    void Output::request_state(Output *output, void *data) {
+        const wlr_output_event_request_state *event =
+            static_cast<wlr_output_event_request_state *>(data);
+
+        wlr_output_commit_state(output->output, event->state);
+
+        output->arrange_layers();
+        output->update_position();
+        server.root.arrange();
+
+        for(auto &ws : output->workspaces) {
+            if(ws->fullscreen)
+                ws->focused_toplevel->update_fullscreen();
+        }
+    }
+
+    void Output::destroy(Output *output, void *data) {
+        server.output_manager.outputs.remove(output);
+        delete output;
     }
 
     OutputManager::OutputManager(wl_display *display)
-        : layout_update(this, output::layout_update, &server.root.output_layout->events.change),
-          output_test(this, output::output_test, &server.output_manager_v1->events.test),
-          output_apply(this, output::output_apply, &server.output_manager_v1->events.apply),
+        : layout_update_list(
+              LISTEN(server.root.output_layout->events.change, OutputManager::layout_update)),
+          test_list(LISTEN(server.output_manager_v1->events.test, OutputManager::output_test)),
+          apply_list(LISTEN(server.output_manager_v1->events.apply, OutputManager::output_apply)),
 
-          output_layout_destroy(this, output::output_layout_destroy,
-                                &server.root.output_layout->events.destroy),
-          output_manager_destroy(this, output::output_manager_destroy,
-                                 &server.output_manager_v1->events.destroy) {}
+          layout_destroy_list(
+              LISTEN(server.root.output_layout->events.destroy, OutputManager::layout_destroy)),
+          destroy_list(LISTEN(server.output_manager_v1->events.destroy, OutputManager::destroy)) {}
 
     Output *OutputManager::output_at(double x, double y) {
         wlr_output *output = wlr_output_layout_output_at(server.root.output_layout, x, y);
@@ -332,5 +279,48 @@ namespace output {
             wlr_output_configuration_v1_send_succeeded(config);
         else
             wlr_output_configuration_v1_send_failed(config);
+    }
+
+    void OutputManager::layout_update(OutputManager *manager, void *data) {
+        wlr_output_configuration_v1 *config = wlr_output_configuration_v1_create();
+
+        for(Output *output : server.output_manager.outputs) {
+            // Get the config head for each output
+            assert(output->output);
+            wlr_output_configuration_head_v1 *config_head =
+                wlr_output_configuration_head_v1_create(config, output->output);
+
+            struct wlr_box output_box;
+            wlr_output_layout_get_box(server.root.output_layout, output->output, &output_box);
+
+            // Mark the output enabled if it's swithed off but not disabled
+            config_head->state.enabled = !wlr_box_empty(&output_box);
+            config_head->state.x = output_box.x;
+            config_head->state.y = output_box.y;
+        }
+
+        // Update the configuration
+        wlr_output_manager_v1_set_configuration(server.output_manager_v1, config);
+    }
+
+    void OutputManager::output_test(OutputManager *manager, void *data) {
+        server.output_manager.apply_output_config(static_cast<wlr_output_configuration_v1 *>(data),
+                                                  true);
+    }
+
+    void OutputManager::output_apply(OutputManager *manager, void *data) {
+        server.output_manager.apply_output_config(static_cast<wlr_output_configuration_v1 *>(data),
+                                                  false);
+    }
+
+    void OutputManager::layout_destroy(OutputManager *manager, void *data) {
+        manager->layout_update_list.free();
+        manager->layout_destroy_list.free();
+    }
+
+    void OutputManager::destroy(OutputManager *manager, void *data) {
+        manager->test_list.free();
+        manager->apply_list.free();
+        manager->destroy_list.free();
     }
 }

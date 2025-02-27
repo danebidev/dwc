@@ -4,6 +4,9 @@
 
 #include "wlr.hpp"
 
+#define LISTEN(signal, func) \
+    this, &signal, std::bind(&func, this, std::placeholders::_1, std::placeholders::_2)
+
 enum class ConfigLoadPhase { CONFIG_FIRST_LOAD, COMPOSITOR_START, BIND, RELOAD };
 
 struct Mode {
