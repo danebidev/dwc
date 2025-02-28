@@ -35,7 +35,7 @@ commands::Command* parse_command(std::string name, int line, std::vector<std::st
     else if(name == "debug")
         return commands::DebugCommand::parse(line, args);
     else {
-        wlr_log(WLR_ERROR, "Error on line %d: command '%s' not recognized", line, name.c_str());
+        logger.log(LogLevel::ERROR, "Error on line {}: command '{}' not recognized", line, name);
         return nullptr;
     }
 }
@@ -106,7 +106,7 @@ namespace commands {
 
     SetCommand* SetCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "Error on line %d: missing set argument", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: missing set argument", line);
             return nullptr;
         }
         std::string value;
@@ -137,7 +137,7 @@ namespace commands {
 
     EnvCommand* EnvCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "Error on line %d: missing env argument", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: missing env argument", line);
             return nullptr;
         }
         std::string value;
@@ -167,7 +167,7 @@ namespace commands {
 
     ExecCommand* ExecCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "Error on line %d: missing exec argument", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: missing exec argument", line);
             return nullptr;
         }
         std::string value;
@@ -188,7 +188,7 @@ namespace commands {
             return true;
         int pid = fork();
         if(pid < 0) {
-            wlr_log(WLR_ERROR, "fork() failed - exiting to avoid errors");
+            logger.log(LogLevel::ERROR, "fork() failed - exiting to avoid errors");
             exit(EXIT_FAILURE);
         }
 
@@ -203,7 +203,7 @@ namespace commands {
 
     ExecAlwaysCommand* ExecAlwaysCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() == 0) {
-            wlr_log(WLR_ERROR, "Error on line %d: missing exec_always argument", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: missing exec_always argument", line);
             return nullptr;
         }
         std::string value;
@@ -224,7 +224,7 @@ namespace commands {
 
         int pid = fork();
         if(pid < 0) {
-            wlr_log(WLR_ERROR, "fork() failed - exiting to avoid errors");
+            logger.log(LogLevel::ERROR, "fork() failed - exiting to avoid errors");
             exit(EXIT_FAILURE);
         }
 
@@ -262,12 +262,12 @@ namespace commands {
     OutputCommand* OutputCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() <= 2) {
             if(args.size() == 0)
-                wlr_log(WLR_ERROR, "Error on line %d: missing output name", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: missing output name", line);
             else if(args.size() == 1)
-                wlr_log(WLR_ERROR, "Error on line %d: missing output subcommand", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: missing output subcommand", line);
             else if(args.size() == 2)
-                wlr_log(WLR_ERROR, "Error on line %d: missing argument to %s subcommand", line,
-                        args[1].c_str());
+                logger.log(LogLevel::ERROR, "Error on line {}: missing argument to {} subcommand",
+                           line, args[1]);
             return nullptr;
         }
 
@@ -275,7 +275,7 @@ namespace commands {
 
         if(args[1] == "enable") {
             if(args.size() > 3) {
-                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
                 return nullptr;
             }
 
@@ -285,13 +285,13 @@ namespace commands {
             else if(args[2] == "off")
                 return new OutputCommand(line, args[0], false);
             else {
-                wlr_log(WLR_ERROR, "Error on line %d: invalid enable argument", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: invalid enable argument", line);
                 return nullptr;
             }
         }
         if(args[1] == "mode") {
             if(args.size() > 3) {
-                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
                 return nullptr;
             }
 
@@ -310,13 +310,13 @@ namespace commands {
                 return new OutputCommand(line, args[0], std::nullopt, mode);
             }
             else {
-                wlr_log(WLR_ERROR, "Error on line %d: invalid mode argument", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: invalid mode argument", line);
                 return nullptr;
             }
         }
         else if(args[1] == "position") {
             if(args.size() > 4) {
-                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
                 return nullptr;
             }
 
@@ -325,13 +325,13 @@ namespace commands {
                 return new OutputCommand(line, args[0], std::nullopt, std::nullopt, pos);
             }
             else {
-                wlr_log(WLR_ERROR, "Error on line %d: invalid position argument", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: invalid position argument", line);
                 return nullptr;
             }
         }
         else if(args[1] == "transform") {
             if(args.size() > 3) {
-                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
                 return nullptr;
             }
 
@@ -353,7 +353,7 @@ namespace commands {
             else if(args[2] == "flipped-270")
                 transform = WL_OUTPUT_TRANSFORM_FLIPPED_270;
             else {
-                wlr_log(WLR_ERROR, "Error on line %d: invalid transform argument", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: invalid transform argument", line);
                 return nullptr;
             }
 
@@ -362,7 +362,7 @@ namespace commands {
         }
         else if(args[1] == "scale") {
             if(args.size() > 3) {
-                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
                 return nullptr;
             }
 
@@ -372,7 +372,7 @@ namespace commands {
         }
         else if(args[1] == "adaptive_sync") {
             if(args.size() > 3) {
-                wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
                 return nullptr;
             }
 
@@ -383,13 +383,14 @@ namespace commands {
                 return new OutputCommand(line, args[0], std::nullopt, std::nullopt, std::nullopt,
                                          std::nullopt, std::nullopt, false);
             else {
-                wlr_log(WLR_ERROR, "Error on line %d: invalid adaptive_sync argument", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: invalid adaptive_sync argument",
+                           line);
                 return nullptr;
             }
         }
 
-        wlr_log(WLR_ERROR, "Error on line %d: unrecognized output subcommand '%s'", line,
-                args[1].c_str());
+        logger.log(LogLevel::ERROR, "Error on line {}: unrecognized output subcommand '{}'", line,
+                   args[1]);
         return nullptr;
     }
 
@@ -432,9 +433,9 @@ namespace commands {
     BindCommand* BindCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() < 2) {
             if(args.size() == 0)
-                wlr_log(WLR_ERROR, "Error on line %d: missing keybind argument", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: missing keybind argument", line);
             else
-                wlr_log(WLR_ERROR, "Error on line %d: missing keybind command", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: missing keybind command", line);
             return nullptr;
         }
 
@@ -448,8 +449,9 @@ namespace commands {
             return nullptr;
 
         if(!command->subcommand_of(CommandType::BIND)) {
-            wlr_log(WLR_ERROR,
-                    "Error on line %d: this command can't be used as subcommand of 'bind'", line);
+            logger.log(LogLevel::ERROR,
+                       "Error on line {}: this command can't be used as subcommand of 'bind'",
+                       line);
             delete command;
             return nullptr;
         }
@@ -476,7 +478,7 @@ namespace commands {
 
     TerminateCommand* TerminateCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
-            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
             return nullptr;
         }
 
@@ -498,7 +500,7 @@ namespace commands {
 
     ReloadCommand* ReloadCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
-            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
             return nullptr;
         }
 
@@ -525,7 +527,7 @@ namespace commands {
 
     KillCommand* KillCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
-            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
             return nullptr;
         }
 
@@ -559,12 +561,13 @@ namespace commands {
 
     WorkspaceCommand* WorkspaceCommand::parse(int line, std::vector<std::string> args) {
         if(args.size() > 1) {
-            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
             return nullptr;
         }
 
         if(!is_number(args[0])) {
-            wlr_log(WLR_ERROR, "Error on line %d: workspace id is not a valid number", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: workspace id is not a valid number",
+                       line);
             return nullptr;
         }
 
@@ -589,7 +592,7 @@ namespace commands {
 
     FullscreenCommand* FullscreenCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
-            wlr_log(WLR_ERROR, "Error on line %d: missing exec argument", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: missing exec argument", line);
             return nullptr;
         }
 
@@ -616,7 +619,7 @@ namespace commands {
 
     DebugCommand* DebugCommand::parse(int line, std::vector<std::string> args) {
         if(args.size()) {
-            wlr_log(WLR_ERROR, "Error on line %d: too many arguments", line);
+            logger.log(LogLevel::ERROR, "Error on line {}: too many arguments", line);
             return nullptr;
         }
 
@@ -650,7 +653,7 @@ namespace commands {
             return true;
         }
 
-        wlr_log(WLR_ERROR, "no wayland backend found");
+        logger.log(LogLevel::ERROR, "no wayland backend found");
 
         return true;
     }
@@ -767,7 +770,8 @@ namespace parsing {
                 break;
 
             if(c == '\0' || c == '\n') {
-                wlr_log(WLR_ERROR, "Error on line %d: opened string is never closed", line);
+                logger.log(LogLevel::ERROR, "Error on line {}: opened string is never closed",
+                           line);
                 return std::nullopt;
             }
 
@@ -825,7 +829,7 @@ namespace parsing {
         Token token = consume();
 
         if(token.type != TokenType::ARG) {
-            wlr_log(WLR_ERROR, "Error on line %d: expected command", token.line);
+            logger.log(LogLevel::ERROR, "Error on line {}: expected command", token.line);
             return {};
         }
 
@@ -842,7 +846,7 @@ namespace parsing {
                 std::vector<std::vector<std::string>> block = read_block();
                 token = consume();
                 if(token.type != TokenType::BRACKET_CLOSE) {
-                    wlr_log(WLR_ERROR, "Error on line %d: expected '}'", token.line);
+                    logger.log(LogLevel::ERROR, "Error on line {}: expected '}}'", token.line);
                     return {};
                 }
                 return ::parse(line, name, args, block);
@@ -860,7 +864,7 @@ namespace parsing {
         // Consume the opening bracket
         Token token = consume();
         if(token.type != TokenType::BRACKET_OPEN) {
-            wlr_log(WLR_ERROR, "Error on line %d: expected '{'", token.line);
+            logger.log(LogLevel::ERROR, "Error on line {}: expected '{{'", token.line);
             return {};
         }
 
@@ -888,7 +892,8 @@ namespace parsing {
                     line_args.push_back(token.val.value());
                 }
                 else {
-                    wlr_log(WLR_ERROR, "Error on line %d: unexpected token in block", token.line);
+                    logger.log(LogLevel::ERROR, "Error on line {}: unexpected token in block",
+                               token.line);
                     consume();
                 }
             }

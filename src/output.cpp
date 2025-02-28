@@ -41,7 +41,7 @@ namespace output {
 
         bool success = config && apply_config(config, false);
         if(!success) {
-            wlr_log(WLR_INFO, "using fallback config for output %s", output->name);
+            logger.log(LogLevel::WARNING, "using fallback config for output {}", output->name);
 
             wlr_output_state state;
             wlr_output_state_init(&state);
@@ -131,7 +131,7 @@ namespace output {
             // set to preferred mode if not set
             if(!mode_set) {
                 wlr_output_state_set_mode(&state, wlr_output_preferred_mode(output));
-                wlr_log(WLR_INFO, "using fallback mode for output %s", output->name);
+                logger.log(LogLevel::INFO, "using fallback mode for output {}", output->name);
             }
 
             // scale
@@ -174,7 +174,7 @@ namespace output {
             case ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY:
                 return layers.shell_overlay;
             default:
-                wlr_log(WLR_ERROR, "invalid type? shouldn't happen");
+                logger.log(LogLevel::ERROR, "invalid type? shouldn't happen");
                 exit(EXIT_FAILURE);
         }
     }

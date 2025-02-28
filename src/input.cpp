@@ -523,8 +523,8 @@ namespace seat {
         if(!seat_dev)
             return;
 
-        wlr_log(WLR_DEBUG, "removing device %s from seat %s", device->identifier.c_str(),
-                seat->name);
+        logger.log(LogLevel::DEBUG, "removing device {} from seat {}", device->identifier,
+                   seat->name);
 
         devices.remove(seat_dev);
         delete seat_dev;
@@ -756,7 +756,7 @@ namespace input {
 
     // Called when a device of any kind is destroyed
     void InputDevice::destroy(InputDevice *input_dev, void *data) {
-        wlr_log(WLR_DEBUG, "removing device: %s", input_dev->identifier.c_str());
+        logger.log(LogLevel::DEBUG, "removing device: {}", input_dev->identifier);
 
         server.input_manager.seat.remove_device(input_dev);
         server.input_manager.devices.remove(input_dev);
@@ -774,7 +774,7 @@ namespace input {
         InputDevice *input_dev = new InputDevice(device);
         input_manager->devices.push_back(input_dev);
 
-        wlr_log(WLR_DEBUG, "adding device: '%s'", input_dev->identifier.c_str());
+        logger.log(LogLevel::DEBUG, "adding device: '{}'", input_dev->identifier);
 
         input_manager->seat.add_device(input_dev);
     }

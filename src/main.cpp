@@ -49,7 +49,6 @@ void log_wlr(wlr_log_importance importance, const char *fmt, va_list args) {
     formatted_message.resize(size);
 
     vsnprintf(&formatted_message[0], size + 1, fmt, args);
-
     logger.log(level, "{}", formatted_message);
 }
 
@@ -112,8 +111,8 @@ int main(int argc, char **argv) {
         server.start(startup_cmd);
     }
     catch(const std::runtime_error &err) {
-        wlr_log(WLR_ERROR, "%s", err.what());
-        wlr_log(WLR_ERROR, "Unrecoverable error. Compositor exiting.");
+        logger.log(LogLevel::ERROR, "{}", err.what());
+        logger.log(LogLevel::ERROR, "error during initialization");
         return EXIT_FAILURE;
     }
 

@@ -55,8 +55,8 @@ namespace config {
                 uint32_t modifier = parse_modifier(token);
 
                 if(modifier == INVALID_MODIFIER) {
-                    wlr_log(WLR_ERROR, "Error on line %d: no such keycode or modifier '%s'", line,
-                            token.c_str());
+                    logger.log(LogLevel::ERROR,
+                               "Error on line {}: no such keycode or modifier '{}'", line, token);
                     return std::nullopt;
                 }
 
@@ -109,7 +109,7 @@ namespace config {
         if(p.we_wordc)
             config_path = p.we_wordv[0];
         else
-            wlr_log(WLR_ERROR, "config path is not valid - skipping");
+            logger.log(LogLevel::ERROR, "config path is not valid - skipping");
 
         wordfree(&p);
     }
@@ -172,16 +172,16 @@ namespace config {
         if(config_path.empty())
             default_config_path();
 
-        wlr_log(WLR_INFO, "reading config file at %s", config_path.c_str());
+        logger.log(LogLevel::INFO, "reading config file at {}", config_path.string());
         if(access(config_path.c_str(), R_OK)) {
-            wlr_log(WLR_ERROR, "failed reading config file - skipping");
+            logger.log(LogLevel::ERROR, "failed reading config file - skipping");
             return "";
         }
 
         std::ifstream input(config_path, std::ios::binary);
 
         if(!input.is_open()) {
-            wlr_log(WLR_ERROR, "failed reading config file - skipping");
+            logger.log(LogLevel::ERROR, "failed reading config file - skipping");
             return "";
         }
 

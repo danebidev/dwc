@@ -112,8 +112,8 @@ void Server::start(char* startup_cmd) {
         if(!ret)
             break;
         else
-            wlr_log(WLR_INFO, "wl_display_add_socket for %s returned %d: skipping", socket.c_str(),
-                    ret);
+            logger.log(LogLevel::WARNING, "wl_display_add_socket for {} returned {}: skipping",
+                       socket, ret);
     }
 
     if(!wlr_backend_start(backend))
@@ -122,7 +122,7 @@ void Server::start(char* startup_cmd) {
     setenv("WAYLAND_DISPLAY", socket.c_str(), true);
     conf.execute_phase(ConfigLoadPhase::COMPOSITOR_START);
 
-    wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket.c_str());
+    logger.log(LogLevel::INFO, "Running Wayland compositor on WAYLAND_DISPLAY={}", socket);
     wl_display_run(display);
 }
 

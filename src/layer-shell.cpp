@@ -10,8 +10,8 @@ namespace layer_shell {
 
         if(!layer_surface->output) {
             if(server->output_manager.outputs.empty()) {
-                wlr_log(WLR_ERROR, "no output to assign layer surface '%s' to",
-                        layer_surface->namespace_);
+                logger.log(LogLevel::ERROR, "no output to assign layer surface '{}' to",
+                           layer_surface->namespace_);
                 wlr_layer_surface_v1_destroy(layer_surface);
                 return;
             }
