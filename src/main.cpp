@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
                         break;
                     int level = std::stoi(optarg);
                     if(level < 0 || level > 3) {
-                        logger.log(LogLevel::ERROR, "invalid loglevel (0-3)");
+                        logger.log(LogLevel::ERROR, "Invalid loglevel (0-3)");
                         exit(EXIT_FAILURE);
                     }
                     logger.log_level = static_cast<LogLevel>(level + 1);
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
                         wlr_log_init(WLR_DEBUG, log_wlr);
                 }
                 catch(const std::runtime_error &err) {
-                    logger.log(LogLevel::ERROR, "loglevel isn't a valid number");
+                    logger.log(LogLevel::ERROR, "Loglevel isn't a valid number");
                     exit(EXIT_FAILURE);
                 }
                 break;
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
     }
     catch(const std::runtime_error &err) {
         logger.log(LogLevel::ERROR, "{}", err.what());
-        logger.log(LogLevel::ERROR, "error during initialization");
+        logger.log(LogLevel::ERROR, "Error during initialization");
         return EXIT_FAILURE;
     }
 

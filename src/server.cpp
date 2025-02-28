@@ -57,10 +57,10 @@ Server::Server()
       xdg_shell_destroy_list(LISTEN(xdg_shell->events.destroy, Server::xdg_shell_destroy)),
       layer_shell_destroy_list(LISTEN(layer_shell->events.destroy, Server::layer_shell_destroy)) {
     if(!backend)
-        throw std::runtime_error("failed to create wlr_backend");
+        throw std::runtime_error("Failed to create wlr_backend");
 
     if(!renderer)
-        throw std::runtime_error("failed to create wlr_renderer");
+        throw std::runtime_error("Failed to create wlr_renderer");
 
     wlr_renderer_init_wl_shm(renderer, display);
     if(wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)) {
@@ -74,7 +74,7 @@ Server::Server()
     }
 
     if(!allocator)
-        throw std::runtime_error("failed to create wlr_allocator");
+        throw std::runtime_error("Failed to create wlr_allocator");
 
     // wl_compositor global.
     // Needed for clients to create surfaces
@@ -117,7 +117,7 @@ void Server::start(char* startup_cmd) {
     }
 
     if(!wlr_backend_start(backend))
-        throw std::runtime_error("couldn't start backend");
+        throw std::runtime_error("Couldn't start backend");
 
     setenv("WAYLAND_DISPLAY", socket.c_str(), true);
     conf.execute_phase(ConfigLoadPhase::COMPOSITOR_START);

@@ -653,7 +653,7 @@ namespace commands {
             return true;
         }
 
-        logger.log(LogLevel::ERROR, "no wayland backend found");
+        logger.log(LogLevel::ERROR, "No wayland backend found");
 
         return true;
     }

@@ -109,7 +109,7 @@ namespace config {
         if(p.we_wordc)
             config_path = p.we_wordv[0];
         else
-            logger.log(LogLevel::ERROR, "config path is not valid - skipping");
+            logger.log(LogLevel::ERROR, "Config path is not valid - skipping");
 
         wordfree(&p);
     }
@@ -172,16 +172,16 @@ namespace config {
         if(config_path.empty())
             default_config_path();
 
-        logger.log(LogLevel::INFO, "reading config file at {}", config_path.string());
+        logger.log(LogLevel::INFO, "Reading config file at {}", config_path.string());
         if(access(config_path.c_str(), R_OK)) {
-            logger.log(LogLevel::ERROR, "failed reading config file - skipping");
+            logger.log(LogLevel::ERROR, "Failed reading config file - skipping");
             return "";
         }
 
         std::ifstream input(config_path, std::ios::binary);
 
         if(!input.is_open()) {
-            logger.log(LogLevel::ERROR, "failed reading config file - skipping");
+            logger.log(LogLevel::ERROR, "Failed reading config file - skipping");
             return "";
         }
 
