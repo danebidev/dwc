@@ -1,6 +1,5 @@
 #pragma once
 
-// IWYU pragma: begin_exports
 #include <libinput.h>
 #include <wayland-server-core.h>
 
@@ -43,4 +42,3 @@ extern "C" {
 #undef namespace
 #undef class
 #undef delete
-// IWYU pragma: end_exports

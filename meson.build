@@ -53,7 +53,7 @@ endforeach
 conf_data = configuration_data()
 conf_data.set_quoted('PROGRAM_NAME', meson.project_name())
 if get_option('buildtype').startswith('debug')
-  conf_data.set('DEBUG', true)
+  conf_data.set('DEBUG_BUILD', true)
 endif
 
 configure_file(

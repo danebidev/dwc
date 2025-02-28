@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <format>
+#include <iostream>
 
 #include "wlr.hpp"
 
@@ -42,3 +43,5 @@ std::string device_identifier(wlr_input_device *device) {
 
     return std::format("{}:{}:{}", vendor, product, name);
 }
+
+Logger logger;

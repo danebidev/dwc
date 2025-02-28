@@ -1,14 +1,13 @@
+#include <getopt.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
+#include <wlr.hpp>
 
 #include "build-config.h"
 #include "config/config.hpp"
 #include "server.hpp"
-
-#include <getopt.h>
-
-#include <wlr.hpp>
 
 void usage() {
     printf("Usage: %s [options]\n", PROGRAM_NAME);
@@ -19,7 +18,7 @@ void usage() {
 }
 
 int main(int argc, char **argv) {
-#ifdef DEBUG
+#ifdef DEBUG_BUILD
     wlr_log_init(WLR_DEBUG, nullptr);
 #else
     wlr_log_init(WLR_INFO, nullptr);
